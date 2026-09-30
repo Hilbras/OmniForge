@@ -1,0 +1,9 @@
+dist
+node_modules
+coverage
+.forge
+package-lock.json
+
+# Planning documents are prose with wide ASCII tables; Prettier reformats them
+# non-idempotently, which would make `format:check` fail on every run.
+tasks

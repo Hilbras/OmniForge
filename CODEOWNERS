@@ -1,0 +1,7 @@
+# Default owners for everything in this repository.
+* @lacrous
+
+# Provider implementations need review before they can publish anything.
+# Phase 9 owns the verification contracts that make publishing safe.
+/src/providers/ @lacrous
+/tests/integration/ @lacrous

@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in Forge behaves incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Forge is pre-1.0 and experimental. Thanks for reporting what breaks.
+
+  - type: input
+    id: version
+    attributes:
+      label: Forge version
+      placeholder: forge --version
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Linux, macOS, Windows, Other]
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      placeholder: node --version
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The command, plus your forge.config.yaml with secrets removed.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: Paste output with `--verbose`. Remove any tokens first.
+      render: shell

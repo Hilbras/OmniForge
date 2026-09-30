@@ -1,0 +1,84 @@
+{
+  "name": "@hilbras/forge",
+  "version": "0.1.0",
+  "description": "Unified release, publishing, versioning, and package management platform",
+  "keywords": [
+    "release",
+    "publishing",
+    "versioning",
+    "semver",
+    "github",
+    "npm",
+    "pypi",
+    "ci"
+  ],
+  "license": "MIT",
+  "author": "Hassan El-Deghidy",
+  "homepage": "https://github.com/Hilbras/hilbras-forge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hilbras/hilbras-forge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Hilbras/hilbras-forge/issues"
+  },
+  "bin": {
+    "forge": "dist/cli/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "default": "./dist/providers/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "dev": "tsx src/cli/index.ts",
+    "prepare": "npm run build",
+    "pretest": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^26.6.3",
+    "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  },
+  "type": "module",
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
