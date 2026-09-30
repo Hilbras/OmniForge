@@ -9,6 +9,22 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.1.1] — 2026-10-01
+
+Fixes a release-blocking bug found by installing the published package.
+
+### Fixed
+
+- **`forge` produced no output when installed as an npm package.** The
+  entry-point guard compared `import.meta.url` against `process.argv[1]`
+  without resolving symlinks. npm installs a `bin` as a symlink under
+  `node_modules/.bin`, so the comparison failed, `main()` was never called,
+  and every command exited 0 while printing nothing — a globally installed
+  `forge` was unusable. Both paths are now resolved with `realpathSync` before
+  comparison, with a suffix comparison as fallback.
+- **Regression test** covering invocation through a `node_modules/.bin`
+  symlink, which is how npm actually installs the binary.
+
 ## [0.1.0] — 2026-10-01
 
 Phase 0 — Foundation.
@@ -55,4 +71,5 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.1.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Hilbras/hilbras-forge/releases/tag/v0.1.0

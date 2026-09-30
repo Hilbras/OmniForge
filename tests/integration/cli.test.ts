@@ -35,6 +35,33 @@ async function forge(args: string[]): Promise<{ stdout: string; stderr: string; 
   }
 }
 
+/** Run the CLI from inside a prepared workdir, resolving the bin symlink. */
+async function forgeSymlinked(
+  cwd: string,
+  args: string[],
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  const { join } = await import('node:path');
+  return invoke(join(cwd, 'node_modules', '.bin', 'forge'), cwd, args);
+}
+
+/** Shared child-process runner used by both invocation styles. */
+async function invoke(
+  bin: string,
+  cwd: string,
+  args: string[],
+): Promise<{ stdout: string; stderr: string; code: number }> {
+  try {
+    const { stdout, stderr } = await execFileAsync(process.execPath, [bin, ...args], {
+      timeout: 30_000,
+      cwd,
+    });
+    return { stdout, stderr, code: 0 };
+  } catch (error) {
+    const e = error as { stdout?: string; stderr?: string; code?: number };
+    return { stdout: e.stdout ?? '', stderr: e.stderr ?? '', code: e.code ?? 1 };
+  }
+}
+
 describe('forge CLI', () => {
   beforeAll(() => {
     if (!existsSync(CLI)) {
@@ -109,6 +136,64 @@ describe('forge CLI', () => {
     it('has help for provider list', async () => {
       const { stdout } = await forge(['provider', 'list', '--help']);
       expect(stdout).toContain('Usage: forge provider list');
+    });
+  });
+
+  describe('installation via npm bin symlink', () => {
+    // Regression test. npm installs a `bin` as a symlink under node_modules/.bin,
+    // so `process.argv[1]` is the symlink and `import.meta.url` is the real file.
+    // An entry-point guard that compares them unresolved makes the CLI exit 0
+    // printing nothing — the binary is dead for every global install.
+    let workdir = '';
+
+    beforeAll(async () => {
+      const { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, cpSync } =
+        await import('node:fs');
+      const { tmpdir } = await import('node:os');
+      const { join } = await import('node:path');
+
+      workdir = mkdtempSync(join(tmpdir(), 'forge-binsymlink-'));
+      const pkgDir = join(workdir, 'node_modules', '@hilbras', 'forge');
+      mkdirSync(pkgDir, { recursive: true });
+      mkdirSync(join(workdir, 'node_modules', '.bin'), { recursive: true });
+      cpSync(join(REPO_ROOT, 'dist'), join(pkgDir, 'dist'), { recursive: true });
+      writeFileSync(
+        join(pkgDir, 'package.json'),
+        JSON.stringify({
+          name: '@hilbras/forge',
+          version: '0.1.0',
+          bin: { forge: 'dist/cli/index.js' },
+        }),
+      );
+
+      // The published package declares `commander` and `yaml` as real
+      // dependencies, so the sandbox needs them resolvable. Linking the repo's
+      // own node_modules supplies both without a network install.
+      symlinkSync(
+        join(REPO_ROOT, 'node_modules', 'commander'),
+        join(workdir, 'node_modules', 'commander'),
+      );
+      symlinkSync(join(REPO_ROOT, 'node_modules', 'yaml'), join(workdir, 'node_modules', 'yaml'));
+
+      // Exactly what npm does for a bin entry.
+      symlinkSync(
+        join('..', '@hilbras', 'forge', 'dist', 'cli', 'index.js'),
+        join(workdir, 'node_modules', '.bin', 'forge'),
+      );
+    });
+
+    it('runs through a relative symlink, as npm creates it', async () => {
+      const { stdout, code } = await forgeSymlinked(workdir, ['--version']);
+
+      expect(code).toBe(0);
+      expect(stdout.trim()).toMatch(/^\d+\.\d+\.\d+/);
+    });
+
+    it('prints help through the symlink', async () => {
+      const { stdout, code } = await forgeSymlinked(workdir, ['--help']);
+
+      expect(code).toBe(0);
+      expect(stdout).toContain('Usage: forge');
     });
   });
 

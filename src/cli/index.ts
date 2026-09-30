@@ -9,7 +9,9 @@
  */
 
 import { Command, CommanderError } from 'commander';
+import { realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { isForgeError, toForgeError } from '../errors/index.js';
 import { createDefaultRegistry } from '../core/registry.js';
 
@@ -155,17 +157,26 @@ export async function main(argv: readonly string[] = process.argv): Promise<numb
   }
 }
 
-/** True when this module is the process entry point, not an import. */
+/**
+ * True when this module is the process entry point, not an import.
+ *
+ * Both paths must be resolved through `realpath` before comparing. npm installs
+ * a package's `bin` as a *symlink* under `node_modules/.bin`, so
+ * `process.argv[1]` is the symlink path while `import.meta.url` is the real file
+ * inside the package. Comparing them unresolved fails silently: the module
+ * imports fine but the CLI never runs, so a globally installed `forge` exits 0
+ * printing nothing.
+ */
 function isDirectRun(): boolean {
   const entry = process.argv[1];
   if (entry === undefined) return false;
+
   try {
-    return (
-      import.meta.url === new URL(`file://${entry}`).href ||
-      import.meta.url.endsWith(entry.replace(/\\/g, '/'))
-    );
+    return realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url));
   } catch {
-    return false;
+    // A path that cannot be resolved still deserves a best-effort comparison,
+    // e.g. an in-memory or virtual module.
+    return import.meta.url.endsWith(entry.replace(/\\/g, '/'));
   }
 }
 
