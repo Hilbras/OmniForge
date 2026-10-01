@@ -11,9 +11,9 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.1.0 — foundation.** The architecture, provider contract, and error
-> taxonomy are in place and tested. Providers and the `forge release` command land
-> in later phases. See [Roadmap](#roadmap).
+> **Status: v0.2.0 — configuration.** The provider contract, error taxonomy, and
+> `forge.config.yaml` system are in place and tested. Providers and the
+> `forge release` command land in later phases. See [Roadmap](#roadmap).
 
 ---
 
@@ -56,14 +56,45 @@ npx @hilbras/forge --help
 ## Usage
 
 ```bash
-forge --help        # discover commands
-forge --version     # print the installed version
+forge --help              # discover commands
+forge --version           # print the installed version
+forge config show         # resolved configuration, secrets never shown
+forge config validate     # every problem at once, exits 2 on failure
+forge config credentials  # what is available, never any value
 forge provider list
 ```
 
 `forge provider list` is intentionally empty today — providers register
 themselves as they are implemented. That emptiness is the point: it proves Core
 drives entirely through the registry.
+
+## Configuration
+
+Drop a `forge.config.yaml` in your project root:
+
+```yaml
+project:
+  name: hilbras-ai-sdk
+
+github:
+  enabled: true
+  repository: Hilbras/Hilbras-ai-sdk
+
+npm:
+  enabled: true
+  package: '@hilbras/ai-sdk'
+
+checks:
+  test: true
+  lint: true
+  build: true
+```
+
+Forge discovers it by walking up from the working directory, so it works from any
+subdirectory. Credentials come from the environment (`GITHUB_TOKEN`, `NPM_TOKEN`,
+`PYPI_TOKEN`) and a credential stored in the config file is rejected outright.
+
+Full reference: [`docs/configuration.md`](docs/configuration.md).
 
 ---
 
@@ -72,7 +103,7 @@ drives entirely through the registry.
 | Phase | Scope                                      | State                         |
 | ----- | ------------------------------------------ | ----------------------------- |
 | 0     | Foundation, CLI, provider contract         | Done                          |
-| 1     | `forge.config.yaml` loading and validation | Planned                       |
+| 1     | `forge.config.yaml` loading and validation | Done                          |
 | 2     | Provider registry and lifecycle            | Contract done, wiring planned |
 | 3     | GitHub provider                            | Planned                       |
 | 4     | Version management                         | Planned                       |

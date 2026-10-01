@@ -9,6 +9,56 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.2.0] — 2026-10-01
+
+Phase 1 — configuration system, and the terminal theme shared across the CLI.
+
+### Added
+
+- **`forge.config.yaml` support**: discovery walks up from the working directory
+  and stops at `$HOME`, so `forge config show` works from any subdirectory without
+  adopting an unrelated config from a parent.
+- **Validation that reports every problem at once**, each with its path, what was
+  expected, and what was received — not one failure per run.
+- **Credentials rejected in config**, reported masked (`ghp_************`). Any key
+  that looks like a secret and holds a literal value is flagged, including nested
+  ones, since that is how they get committed. `tokenEnv` is the supported
+  alternative.
+- **Argument arrays required for check commands.** A string command is rejected
+  because it invites shell interpolation, which the security spec forbids.
+- **CLI overrides** — `--config`, `--registry`, `--dist-tag`, `--repository`.
+- **`forge config` subcommands**: `show`, `validate`, `path`, `credentials`, `init`.
+- **Terminal theme** (`src/ui/theme.ts`) matching the Hilbras design system: gold
+  accent, dim secondary text, green/red reserved for pass/fail, and the house
+  `✓` / `✗` / `→` glyphs. Output goes through one injected console so colour and
+  indentation are consistent everywhere and tests need no TTY.
+- **Colour control**: on for a TTY, `NO_COLOR` disables, `FORCE_COLOR` forces,
+  `forge --no-color` per-run.
+- **Credential resolution** (`src/authentication/index.ts`): resolves from the
+  environment on demand, falls back to `gh auth token` for GitHub, and returns a
+  struct that carries presence and identity but never the secret.
+
+### Fixed
+
+- **An enabled provider with no target is now an error.** Silently skipping meant
+  `forge release` could report success while publishing nothing.
+- **`forge config validate` exits 2 on failure.** It previously exited 0, so a CI
+  step gating on it would pass on a broken config.
+- **Commands report failures by throwing**, not by setting `process.exitCode`.
+  The action-level assignment was overwritten when `main()` returned its own
+  value, so a config failure vanished and exited 0.
+- **`NO_COLOR=` (empty) no longer disables colour.** Only a real value counts;
+  an empty variable exported by a wrapper script was silently killing colour.
+- **`FORCE_COLOR` now actually reaches every command.** `forge config` built its
+  own console without the palette, so colour never applied to it.
+
+### Notes
+
+- Exit codes moved to `src/cli/exit-codes.ts` so command modules can use them
+  without importing the CLI entry point that imports them in turn.
+- The architecture test now strips comments before checking for platform
+  literals, so prose discussing provider names no longer trips it.
+
 ## [0.1.1] — 2026-10-01
 
 Fixes a release-blocking bug found by installing the published package.
@@ -71,5 +121,6 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Hilbras/hilbras-forge/releases/tag/v0.1.0

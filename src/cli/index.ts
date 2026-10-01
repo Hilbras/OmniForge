@@ -14,6 +14,19 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { isForgeError, toForgeError } from '../errors/index.js';
 import { createDefaultRegistry } from '../core/registry.js';
+// Aliased: the bare name `Console` is a global in @types/node and would shadow
+// Forge's own terminal interface.
+import {
+  createConsole,
+  createPalette,
+  shouldUseColor,
+  type Console as TerminalConsole,
+} from '../ui/theme.js';
+import { registerConfigCommand } from './commands/config.js';
+import { ExitCode, exitCodeFor } from './exit-codes.js';
+
+// Re-exported so library consumers and tests can branch on CLI outcomes.
+export { ExitCode, exitCodeFor } from './exit-codes.js';
 
 const require = createRequire(import.meta.url);
 
@@ -27,13 +40,25 @@ function readVersion(): string {
   }
 }
 
-/** Print to stdout. Centralized so tests can assert on output shape. */
-function out(line: string): void {
-  process.stdout.write(`${line}\n`);
+/**
+ * Build the CLI console from the process environment.
+ *
+ * Colour is on only for a TTY, and `NO_COLOR` overrides everything, so piping
+ * output or running in CI produces clean text.
+ */
+export function buildConsole(
+  env: NodeJS.ProcessEnv = process.env,
+  stdout: { isTTY?: boolean } = process.stdout,
+): TerminalConsole {
+  return createConsole({
+    write: (text: string) => process.stdout.write(text),
+    writeError: (text: string) => process.stderr.write(text),
+    palette: createPalette(shouldUseColor(env, stdout.isTTY === true)),
+  });
 }
 
 /** Attach the `provider` command group. */
-function registerProviderCommands(program: Command): void {
+function registerProviderCommands(program: Command, term: TerminalConsole): void {
   const registry = createDefaultRegistry();
 
   const provider = program
@@ -54,10 +79,10 @@ Examples:
     .action(() => {
       const names = registry.names();
       if (names.length === 0) {
-        out('No providers registered yet.');
+        term.info('No providers registered yet.');
         return;
       }
-      for (const name of names) out(name);
+      for (const name of names) term.line(name);
     });
 
   provider
@@ -66,20 +91,20 @@ Examples:
     .action(() => {
       const caps = registry.listCapabilities();
       if (caps.length === 0) {
-        out('No providers registered yet.');
+        term.info('No providers registered yet.');
         return;
       }
       for (const entry of caps) {
-        out(entry.name);
-        out(`  ${entry.description}`);
-        out(`  capabilities: ${entry.capabilities.join(', ') || 'none'}`);
-        out(`  version sources: ${entry.versionSources.join(', ') || 'none'}`);
+        term.line(term.palette.gold(entry.name));
+        term.detail(entry.description);
+        term.line(`  capabilities: ${entry.capabilities.join(', ') || 'none'}`);
+        term.line(`  version sources: ${entry.versionSources.join(', ') || 'none'}`);
       }
     });
 }
 
 /** Build the root `forge` program with every command attached. */
-export function buildProgram(): Command {
+export function buildProgram(term: TerminalConsole = buildConsole()): Command {
   const program = new Command();
 
   program
@@ -87,57 +112,56 @@ export function buildProgram(): Command {
     .description('Unified release, publishing, versioning, and package management platform')
     .version(readVersion(), '-V, --version', 'Print the Forge version')
     .option('--verbose', 'Print stack traces for unexpected errors')
+    .option('--no-color', 'Disable colored output')
     .showHelpAfterError('(run `forge --help` for usage)')
     .configureOutput({
       writeErr: (str: string) => process.stderr.write(str),
     });
 
-  registerProviderCommands(program);
+  registerProviderCommands(program, term);
+  registerConfigCommand(program, {
+    write: (text) => process.stdout.write(text),
+    writeError: (text) => process.stderr.write(text),
+    env: process.env,
+    palette: term.palette,
+  });
 
   return program;
 }
 
 /**
- * Process exit codes, so scripts can branch on the class of failure.
- *
- * 1 generic, 2 configuration, 3 verification, 4 confirmation required.
+ * Render a fatal error to stderr in the CLI's four-part format: what failed,
+ * why, which operation it affected, and what to do next.
  */
-export const ExitCode = {
-  Success: 0,
-  Generic: 1,
-  Config: 2,
-  Verification: 3,
-  Confirmation: 4,
-} as const;
-
-/** Render a fatal error to stderr in the CLI's four-part format. */
-export function reportFatalError(error: unknown, verbose: boolean): number {
+export function reportFatalError(
+  error: unknown,
+  verbose: boolean,
+  term: TerminalConsole = buildConsole(),
+): number {
   const forgeError = toForgeError(error);
+  const p = term.palette;
 
-  process.stderr.write(`${forgeError.format()}\n`);
+  term.writeErrorPlain(`${p.red(forgeError.message)}\n`);
+  if (forgeError.operation !== undefined)
+    term.writeErrorPlain(`  Operation:  ${forgeError.operation}\n`);
+  if (forgeError.provider !== undefined)
+    term.writeErrorPlain(`  Provider:   ${forgeError.provider}\n`);
+  term.writeErrorPlain(`  Code:       ${forgeError.code}\n`);
+  if (forgeError.remediation !== undefined) {
+    term.writeErrorPlain(`  Next step:  ${forgeError.remediation}\n`);
+  }
 
   if (verbose && forgeError.cause instanceof Error && forgeError.cause.stack !== undefined) {
-    process.stderr.write(`\n${forgeError.cause.stack}\n`);
+    term.writeErrorPlain(`\n${forgeError.cause.stack}\n`);
   }
 
-  switch (forgeError.code) {
-    case 'CONFIG_NOT_FOUND':
-    case 'CONFIG_INVALID':
-    case 'CONFIG_PARSE_ERROR':
-      return ExitCode.Config;
-    case 'VERIFICATION_FAILED':
-    case 'INTEGRITY_FAILED':
-      return ExitCode.Verification;
-    case 'CONFIRMATION_REQUIRED':
-      return ExitCode.Confirmation;
-    default:
-      return ExitCode.Generic;
-  }
+  return exitCodeFor(forgeError.code);
 }
 
 /** Parse argv and run. Returns the process exit code. */
 export async function main(argv: readonly string[] = process.argv): Promise<number> {
-  const program = buildProgram();
+  const term = buildConsole();
+  const program = buildProgram(term);
   const verbose = argv.includes('--verbose');
 
   try {
@@ -148,12 +172,12 @@ export async function main(argv: readonly string[] = process.argv): Promise<numb
     if (error instanceof CommanderError) {
       return error.exitCode;
     }
-    // Kept explicit for readability even though both branches format identically
-    // today: confirmation-required gets its own exit code via reportFatalError.
+    // Both branches format identically today; confirmation-required is called
+    // out so adding distinct handling later is a one-line change.
     if (isForgeError(error) && error.code === 'CONFIRMATION_REQUIRED') {
-      return reportFatalError(error, verbose);
+      return reportFatalError(error, verbose, term);
     }
-    return reportFatalError(error, verbose);
+    return reportFatalError(error, verbose, term);
   }
 }
 

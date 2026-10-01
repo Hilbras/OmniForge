@@ -30,6 +30,57 @@ function collect(dir: string): string[] {
 
 const ALL_SRC = collect(SRC);
 
+/**
+ * Remove comments from TypeScript source.
+ *
+ * A deliberately simple lexer rather than a regex over the whole file: it walks
+ * the text tracking whether it is inside a string, template literal, or comment,
+ * so a `//` inside a string literal does not truncate the rest of the file.
+ * Good enough for an architectural guard, and it cannot mis-parse code.
+ */
+function stripComments(source: string): string {
+  let out = '';
+  let i = 0;
+
+  while (i < source.length) {
+    const two = source.slice(i, i + 2);
+    const ch = source[i] ?? '';
+
+    if (two === '//') {
+      while (i < source.length && source[i] !== '\n') i += 1;
+      continue;
+    }
+    if (two === '/*') {
+      i += 2;
+      while (i < source.length && source.slice(i, i + 2) !== '*/') i += 1;
+      i += 2;
+      continue;
+    }
+    if (ch === "'" || ch === '"' || ch === '`') {
+      const quote = ch;
+      out += ch;
+      i += 1;
+      while (i < source.length) {
+        const c = source[i] ?? '';
+        if (c === '\\') {
+          out += source.slice(i, i + 2);
+          i += 2;
+          continue;
+        }
+        out += c;
+        i += 1;
+        if (c === quote) break;
+      }
+      continue;
+    }
+
+    out += ch;
+    i += 1;
+  }
+
+  return out;
+}
+
 /** Directories that must stay free of platform-specific logic. */
 const PLATFORM_FREE_DIRS = [
   'core',
@@ -84,14 +135,17 @@ describe('architecture', () => {
       const offenders: string[] = [];
       for (const file of files) {
         const rel = relative(SRC, file);
-        const source = readFileSync(file, 'utf8');
+        // Strip comments before matching: prose legitimately discusses platform
+        // names (including comments that explain why they are forbidden here),
+        // and only code should be constrained.
+        const code = stripComments(readFileSync(file, 'utf8'));
         // Match a platform token inside a string literal used in a comparison
-        // or switch — a mention in prose comments or config keys is fine.
+        // or switch — a mention in prose or config keys is fine.
         const pattern = new RegExp(
           `(===|!==|==|!=|case\\s+|includes\\()\\s*['"\`](${PLATFORM_TOKENS.join('|')})['"\`]`,
           'gi',
         );
-        if (pattern.test(source)) offenders.push(rel);
+        if (pattern.test(code)) offenders.push(rel);
       }
       expect(offenders).toEqual([]);
     });

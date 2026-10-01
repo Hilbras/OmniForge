@@ -1,0 +1,29 @@
+project:
+  name: hilbras-forge
+
+version:
+  strategy: semver
+  file: package.json
+  tagPrefix: v
+
+github:
+  enabled: true
+  repository: Hilbras/hilbras-forge
+
+npm:
+  enabled: true
+  package: '@hilbras/forge'
+  registry: https://registry.npmjs.org
+  distTag: latest
+
+pypi:
+  enabled: false
+
+checks:
+  test: true
+  lint: true
+  build: true
+
+order:
+  - github
+  - npm
