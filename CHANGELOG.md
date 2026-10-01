@@ -9,6 +9,53 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.4.0] — 2026-10-01
+
+Phases 4 and 5 — version management and the check engine.
+
+### Added
+
+- **Semantic versioning** (`src/version/semver.ts`), dependency-free. Parsing
+  rejects what the spec rejects, including leading zeros; comparison sorts
+  prereleases below their release and numeric identifiers numerically, so
+  `rc.9 < rc.10` rather than the reverse.
+- **Bumping** with correct prerelease semantics: `2.3.4-rc.1` + prerelease is
+  `2.3.4-rc.2` (advance in place), while + patch graduates it to `2.3.4`.
+- **Version sources** (`src/version/sources.ts`) so Forge never assumes where a
+  project keeps its version. Reads and writes `package.json`,
+  `pyproject.toml` (both `[project]` and `[tool.poetry]`), a plain `VERSION`
+  file, and any `file.json:dotted.path`.
+- **Minimal-diff writes.** `package.json` is edited as text so only the version
+  line changes — no key reordering or reindentation. `pyproject.toml` likewise
+  keeps its comments. A round-trip through a serializer would leave an
+  unacceptable diff in a user's repo.
+- **Cross-source consistency check.** A polyglot project whose `package.json` and
+  `pyproject.toml` disagree is a hard error. Publishing two different versions
+  from one release is exactly the silent inconsistency the spec forbids.
+- **Check engine** (`src/build/checks.ts`): mandatory and optional checks, with a
+  mandatory failure halting before anything is published. Skipped checks are
+  recorded rather than dropped so the report shows the whole plan.
+- **`forge version current | next | bump | sources`** and
+  **`forge check [names...]`**, **`forge test`**, **`forge build`**.
+  `bump` and the mutating GitHub commands confirm first and refuse without
+  `--yes` when stdin is not a TTY.
+- **Duplicate-release guard**: a bump to a version already published is refused
+  before any file is written.
+
+### Fixed
+
+- **Minor bumps discarded the major.** `1.2.3` + minor produced `3.0.0` instead of
+  `1.3.0`, and `1.9.9` produced `10.0.0`. Caught by the semver tests before
+  release.
+- **Errors printed twice** in `forge version`. Commands printed a failure and
+  then rethrew it, so the CLI's top-level handler rendered it again.
+
+### Notes
+
+- Adds `smol-toml` for reading `pyproject.toml`.
+- `forge check` streams output live, so a long suite shows progress.
+- Version tests: 64 semver, 48 sources, 23 checks. Suite is 427 passing.
+
 ## [0.3.0] — 2026-10-01
 
 Phase 3 — the GitHub provider, and the hardened executor it needed.
@@ -176,6 +223,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.4.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...v0.1.1

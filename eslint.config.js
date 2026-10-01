@@ -37,8 +37,18 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
       // Test doubles implement an async interface synchronously on purpose.
       '@typescript-eslint/require-await': 'off',
+      // Tests read JSON loosely; a cast at the point of use is clearer than a
+      // full type declaration for a fixture file.
+      '@typescript-eslint/no-unsafe-member-access': 'off',
       'no-console': 'off',
     },
+  },
+  {
+    // `VersionSource.write` is declared async so every implementation matches the
+    // contract, but the file edits it performs are synchronous. Requiring an
+    // `await` here would mean adding a fake one.
+    files: ['src/version/sources.ts'],
+    rules: { '@typescript-eslint/require-await': 'off' },
   },
   {
     // The CLI is the one place console output is the product.

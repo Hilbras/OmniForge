@@ -150,7 +150,7 @@ describe('forge CLI', () => {
     let workdir = '';
 
     beforeAll(async () => {
-      const { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, cpSync } =
+      const { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, cpSync, readFileSync } =
         await import('node:fs');
       const { tmpdir } = await import('node:os');
       const { join } = await import('node:path');
@@ -169,14 +169,18 @@ describe('forge CLI', () => {
         }),
       );
 
-      // The published package declares `commander` and `yaml` as real
-      // dependencies, so the sandbox needs them resolvable. Linking the repo's
-      // own node_modules supplies both without a network install.
-      symlinkSync(
-        join(REPO_ROOT, 'node_modules', 'commander'),
-        join(workdir, 'node_modules', 'commander'),
-      );
-      symlinkSync(join(REPO_ROOT, 'node_modules', 'yaml'), join(workdir, 'node_modules', 'yaml'));
+      // The published package declares real runtime dependencies, so the sandbox
+      // needs them resolvable. Link the repo's own copies rather than installing,
+      // and read the list from package.json so a new dependency cannot silently
+      // break this test.
+      const root = JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')) as {
+        dependencies?: Record<string, string>;
+      };
+      for (const dependency of Object.keys(root.dependencies ?? {})) {
+        const from = join(REPO_ROOT, 'node_modules', dependency);
+        if (!existsSync(from)) throw new Error(`Dependency ${dependency} is not installed`);
+        symlinkSync(from, join(workdir, 'node_modules', dependency));
+      }
 
       // Exactly what npm does for a bin entry.
       symlinkSync(

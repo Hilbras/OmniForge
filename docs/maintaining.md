@@ -24,6 +24,29 @@ index yields `T | undefined` — handle it rather than asserting.
 If a feature seems to need platform branching, the missing abstraction is
 usually in the `Provider` interface. Widen it there, not in Core.
 
+| Path                    | Role                                               |
+| ----------------------- | -------------------------------------------------- |
+| `src/core/`             | Provider contract + registry. Platform-agnostic.   |
+| `src/providers/<name>/` | One directory per platform.                        |
+| `src/release/`          | Step pipeline (Phase 8).                           |
+| `src/cli/`              | Command wiring and process concerns only.          |
+| `src/build/`            | `exec.ts` (hardened spawn), `git.ts`, `checks.ts`. |
+| `src/version/`          | `semver.ts`, `sources.ts`, `engine.ts`.            |
+| `src/ui/`               | Terminal theme and console.                        |
+
+## Two rules that keep biting
+
+**Never pass a command as a string.** Every call site takes an argument array
+(`['npm', 'test']`) and `execute` uses `shell: false`. A string would make
+interpolation possible, which the security spec forbids.
+
+**Never mutate `process.exitCode` inside a command action.** `main()` assigns the
+process exit code from its own return value, so an action's assignment is
+silently overwritten and the failure vanishes. Throw a `ForgeError` instead; the
+top-level handler owns both the exit code and the four-part error format. This is
+why `forge config validate` once exited 0 on an invalid config, and why catching
+an error only to rethrow it doubles every message.
+
 ## Verification gate
 
 ```bash

@@ -47,9 +47,16 @@ export interface ExecResult {
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_GRACE_MS = 2_000;
 
-/** Characters that only matter in a shell. Their presence in an argument is fine,
- * but a caller interpolating them into a single string is exactly what this module
- * prevents — so we log the shape, never the content. */
+/**
+ * Characters that indicate a command was probably meant for a shell.
+ *
+ * Forge always passes an argument array with `shell: false`, so these are never
+ * interpreted — `["sh","-c","a; rm -rf /"]` runs `a` in a subshell and `rm`
+ * never happens. This list exists only to *warn* that a check looks shell-shaped,
+ * so an unexpected result is traceable to an unexpected command. Expect false
+ * positives on inline scripts (`node -e "...;..."`), which is why the warning is
+ * advisory rather than an error.
+ */
 const SUSPICIOUS = /[;&|`$><\n]/;
 
 /**

@@ -11,9 +11,10 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.3.0 — GitHub provider.** The provider contract, configuration system,
-> and the first real provider are in place and tested. npm, PyPI, and the
-> `forge release` command land in later phases. See [Roadmap](#roadmap).
+> **Status: v0.4.0 — versioning and checks.** Configuration, the GitHub provider,
+> semantic version management, and the check engine are in place and tested. npm,
+> PyPI, and the `forge release` command land in later phases. See
+> [Roadmap](#roadmap).
 
 ---
 
@@ -63,11 +64,70 @@ forge config validate     # every problem at once, exits 2 on failure
 forge config credentials  # what is available, never any value
 forge provider list
 forge github status       # auth, repository, branch, dirty state
+forge version current     # the project version and where it came from
+forge check               # run the configured checks
 ```
 
 `forge provider list` is intentionally empty today — providers register
 themselves as they are implemented. That emptiness is the point: it proves Core
 drives entirely through the registry.
+
+## Versions
+
+```bash
+forge version current                    # 1.4.0, from package.json
+forge version next --patch               # 1.4.1
+forge version next --minor --prerelease  # 1.5.0-rc.0
+forge version bump --patch               # writes it, after confirming
+forge version sources                    # which files are read
+```
+
+Forge does not assume where your version lives. It reads `package.json`,
+`pyproject.toml` (both `[project]` and `[tool.poetry]`), a plain `VERSION` file,
+or any `file.json:dotted.path` you name in `version.file`.
+
+Writes are minimal: bumping `package.json` changes the version line and nothing
+else — no key reordering, no reindentation, and `pyproject.toml` keeps its
+comments.
+
+**Disagreeing sources are an error.** If `package.json` says `1.4.0` and
+`pyproject.toml` says `1.3.0`, Forge stops rather than publishing two versions
+from one release.
+
+Prereleases behave as you'd expect: `forge version next --prerelease` advances an
+existing `2.3.4-rc.1` to `rc.2`, and `--patch` on it graduates to `2.3.4`.
+
+---
+
+## Checks
+
+```yaml
+checks:
+  test: true
+  lint: true
+  build: true
+  e2e:
+    command: ['npx', 'playwright', 'test']
+    optional: true
+    timeoutMs: 900000
+```
+
+```bash
+forge check              # everything
+forge check test lint    # named checks
+forge test
+forge build
+```
+
+Commands are argument arrays and run **without a shell**, so a metacharacter in
+an argument is data, never syntax. Output streams live so a long suite shows
+progress.
+
+A mandatory check that fails **halts the release** — later checks are recorded as
+skipped and nothing is published. Mark a check `optional: true` to record its
+failure without stopping.
+
+---
 
 ## Releasing to GitHub
 
@@ -128,8 +188,8 @@ Full reference: [`docs/configuration.md`](docs/configuration.md).
 | 1     | `forge.config.yaml` loading and validation | Done                          |
 | 2     | Provider registry and lifecycle            | Contract done, wiring planned |
 | 3     | GitHub provider                            | Done                          |
-| 4     | Version management                         | Planned                       |
-| 5     | Check and build engine                     | Planned                       |
+| 4     | Version management                         | Done                          |
+| 5     | Check and build engine                     | Done                          |
 | 6     | npm provider                               | Planned                       |
 | 7     | PyPI provider                              | Planned                       |
 | 8     | Release orchestration                      | Planned                       |

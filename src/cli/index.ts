@@ -24,6 +24,8 @@ import {
 } from '../ui/theme.js';
 import { registerConfigCommand } from './commands/config.js';
 import { registerGitHubCommand } from './commands/github.js';
+import { registerVersionCommand } from './commands/version.js';
+import { registerCheckCommand } from './commands/check.js';
 import { ExitCode, exitCodeFor } from './exit-codes.js';
 
 // Re-exported so library consumers and tests can branch on CLI outcomes.
@@ -132,6 +134,17 @@ export function buildProgram(term: TerminalConsole = buildConsole()): Command {
     env: process.env,
     palette: term.palette,
     confirm: askYesNo,
+  });
+  registerVersionCommand(program, {
+    write: (text) => process.stdout.write(text),
+    writeError: (text) => process.stderr.write(text),
+    palette: term.palette,
+    confirm: askYesNo,
+  });
+  registerCheckCommand(program, {
+    write: (text) => process.stdout.write(text),
+    writeError: (text) => process.stderr.write(text),
+    palette: term.palette,
   });
 
   return program;
