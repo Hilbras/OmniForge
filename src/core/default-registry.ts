@@ -10,20 +10,30 @@
 
 import { ProviderRegistry, type ProviderFactory } from './registry.js';
 import { GitHubProvider } from '../providers/github/index.js';
+import { NpmProvider } from '../providers/npm/index.js';
 
 /** Factory for the GitHub provider. */
 const githubFactory: ProviderFactory = () => new GitHubProvider();
 
+/** Factory for the npm provider. */
+const npmFactory: ProviderFactory = () => new NpmProvider();
+
 /**
  * Build the registry Forge ships with.
  *
- * npm (Phase 6) and PyPI (Phase 7) register here next. Until then `provider
- * list` shows only `github`, which is honest about what exists.
+ * PyPI (Phase 7) registers here next. Until then `provider list` shows `github`
+ * and `npm`, which is honest about what exists.
  */
 export function createDefaultRegistry(): ProviderRegistry {
-  return new ProviderRegistry().register('github', githubFactory, {
-    description: 'GitHub repositories: tags, releases, and release assets',
-    capabilities: ['repository', 'tags', 'releases', 'assets', 'verify'],
-    versionSources: ['git tags', 'GitHub releases'],
-  });
+  return new ProviderRegistry()
+    .register('github', githubFactory, {
+      description: 'GitHub repositories: tags, releases, and release assets',
+      capabilities: ['repository', 'tags', 'releases', 'assets', 'verify'],
+      versionSources: ['git tags', 'GitHub releases'],
+    })
+    .register('npm', npmFactory, {
+      description: 'npm packages: publish, dist-tags, and registry verification',
+      capabilities: ['package', 'publish', 'dist-tags', 'verify'],
+      versionSources: ['package.json', 'npm registry'],
+    });
 }

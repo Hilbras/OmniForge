@@ -9,6 +9,53 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.5.0] — 2026-10-01
+
+Phase 6 — the npm provider. The second real platform behind the provider
+contract, and the first one that publishes something irreversible.
+
+### Added
+
+- **npm registry client** (`src/providers/npm/client.ts`). Reads package metadata
+  over HTTP, moves and removes dist-tags, and publishes by shelling out to
+  `npm publish` — npm handles auth, the `files` allowlist, and provenance
+  correctly, and reimplementing that would be a worse npm.
+- **`NpmProvider`** implementing the full contract: authenticate, validate,
+  getVersion, publish, verify. Registered in the composition root.
+- **`forge npm status | package | publish | dist-tag | verify`**.
+- **Dist-tag safety.** A prerelease never receives `latest`; Forge picks `next`,
+  `beta`, or `alpha` from the version and refuses outright if `latest` is forced.
+  Getting this wrong ships unfinished code to everyone running `npm install`.
+- **Normalized npm errors.** "Already published" arrives as a 403, indistinguishable
+  at a glance from a permissions problem; it gets its own `DUPLICATE_RELEASE` code
+  with the right remediation. Auth, payment, and not-found are separated too.
+- **Cache-busted registry reads.** A cached metadata document made an unpublished
+  version look published, which wrongly refused an irreversible publish.
+- **CLI contract tests** that assert no subcommand declares a flag commander
+  intercepts (`--version`, `--help`), plus a behavioural check that a flag is
+  actually applied rather than swallowed.
+
+### Fixed
+
+- **`--dry-run` was a no-op that still demanded confirmation.** Commander
+  camelCases dashed flags, so `--dry-run` arrives as `dryRun`; reading
+  `flags['dry-run']` silently yielded `undefined`.
+- **A dry run now really runs npm with `--dry-run`.** It previously returned early,
+  so a broken `files` allowlist went unnoticed until the real publish — the one
+  thing a dry run exists to catch.
+- **Auth failures were reported as generic provider errors.** npm puts the error
+  code on a line separate from the prose, so `ENEEDAUTH` and "requires you to be
+  logged in" both fell through.
+- **Removed `forge npm publish --version`.** `npm publish` only ever publishes the
+  version in `package.json`, so the flag silently did nothing while reporting
+  success. There is no override; bump the file first.
+
+### Notes
+
+- The token is passed through the child environment, never as a CLI argument —
+  an argument is visible in the process list.
+- 484 tests passing, up from 427.
+
 ## [0.4.0] — 2026-10-01
 
 Phases 4 and 5 — version management and the check engine.
@@ -223,6 +270,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.5.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.1...v0.2.0

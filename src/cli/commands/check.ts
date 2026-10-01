@@ -116,6 +116,7 @@ async function runNamed(
   flags: Record<string, unknown>,
 ): Promise<void> {
   const config = resolveConfig({ cwd: process.cwd() });
+  // `--verbose-output` arrives as `verboseOutput`, not `verbose-output`.
   const showOutput = flags['verboseOutput'] === true;
 
   if (config.checks[name] === undefined) {

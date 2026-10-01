@@ -24,6 +24,7 @@ import {
 } from '../ui/theme.js';
 import { registerConfigCommand } from './commands/config.js';
 import { registerGitHubCommand } from './commands/github.js';
+import { registerNpmCommand } from './commands/npm.js';
 import { registerVersionCommand } from './commands/version.js';
 import { registerCheckCommand } from './commands/check.js';
 import { ExitCode, exitCodeFor } from './exit-codes.js';
@@ -129,6 +130,13 @@ export function buildProgram(term: TerminalConsole = buildConsole()): Command {
     palette: term.palette,
   });
   registerGitHubCommand(program, {
+    write: (text) => process.stdout.write(text),
+    writeError: (text) => process.stderr.write(text),
+    env: process.env,
+    palette: term.palette,
+    confirm: askYesNo,
+  });
+  registerNpmCommand(program, {
     write: (text) => process.stdout.write(text),
     writeError: (text) => process.stderr.write(text),
     env: process.env,

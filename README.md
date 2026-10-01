@@ -11,9 +11,8 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.4.0 — versioning and checks.** Configuration, the GitHub provider,
-> semantic version management, and the check engine are in place and tested. npm,
-> PyPI, and the `forge release` command land in later phases. See
+> **Status: v0.5.0 — npm provider.** GitHub and npm are both implemented and
+> tested; PyPI and the `forge release` command land in later phases. See
 > [Roadmap](#roadmap).
 
 ---
@@ -66,6 +65,7 @@ forge provider list
 forge github status       # auth, repository, branch, dirty state
 forge version current     # the project version and where it came from
 forge check               # run the configured checks
+forge npm status          # auth, package, and registry state
 ```
 
 `forge provider list` is intentionally empty today — providers register
@@ -126,6 +126,36 @@ progress.
 A mandatory check that fails **halts the release** — later checks are recorded as
 skipped and nothing is published. Mark a check `optional: true` to record its
 failure without stopping.
+
+---
+
+## Publishing to npm
+
+```bash
+forge version bump --patch   # bump package.json first — npm only publishes what's in it
+forge npm status             # check auth and what is already published
+forge npm publish --dry-run  # pack and report without uploading
+forge npm publish --yes      # the real thing
+forge npm verify --release-version 1.2.3
+```
+
+There is deliberately **no `--version` flag** on `forge npm publish`. `npm publish`
+only ever publishes the version in `package.json`, so a flag that appeared to
+override it would silently do nothing while reporting success. Bump the file
+first.
+
+**A prerelease never gets the `latest` tag.** Forge picks `next`, `beta`, or
+`alpha` from the version, and refuses outright if you try to force `latest`:
+
+```text
+✗ 1.0.0-rc.1 is a prerelease and cannot be tagged latest.
+```
+
+`--dry-run` really runs npm with `--dry-run`, so a broken `files` allowlist or a
+missing build output is caught before an irreversible publish.
+
+Credentials come from `NPM_TOKEN` and are passed through the environment, never as
+a CLI argument — an argument is visible in the process list.
 
 ---
 
