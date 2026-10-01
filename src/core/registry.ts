@@ -165,10 +165,8 @@ export class ProviderRegistry {
 /**
  * The registry the CLI uses.
  *
- * Phases 3, 6, and 7 register the GitHub, npm, and PyPI providers here. Until
- * then it is intentionally empty, which is what makes the Core testable with a
- * fake provider and proves the abstraction holds.
+ * The shipped registry now lives in `default-registry.ts`, so this module stays
+ * free of concrete provider imports and the composition root is the only file
+ * that has to change when a provider is added.
  */
-export function createDefaultRegistry(): ProviderRegistry {
-  return new ProviderRegistry();
-}
+export { createDefaultRegistry } from './default-registry.js';

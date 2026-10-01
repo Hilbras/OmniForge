@@ -20,12 +20,12 @@ const execFileAsync = promisify(execFile);
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const CLI = fileURLToPath(new URL('../../dist/cli/index.js', import.meta.url));
 
-async function forge(args: string[], cwd?: string) {
+async function forge(args: string[], cwd?: string, envExtra?: Record<string, string>) {
   try {
     const { stdout, stderr } = await execFileAsync(process.execPath, [CLI, ...args], {
       timeout: 30_000,
       cwd: cwd ?? REPO_ROOT,
-      env: { ...process.env, NO_COLOR: '1' },
+      env: { ...process.env, NO_COLOR: '1', ...envExtra },
     });
     return { stdout, stderr, code: 0 };
   } catch (error) {
@@ -225,24 +225,48 @@ github:
   });
 
   describe('credentials', () => {
-    it('reports presence without revealing values', async () => {
-      const dir = project({ 'forge.config.yaml': VALID });
+    // `forge config credentials` shells out to `gh auth token` and
+    // `gh api user`. Each can take several seconds, and under parallel test
+    // load they exceed vitest's 5s default — which surfaced as an intermittent
+    // failure with no failing assertion at all.
+    const GITHUB_TIMEOUT_MS = 30_000;
 
-      const { stdout, code } = await forge(['config', 'credentials'], dir);
+    it(
+      'reports presence without revealing values',
+      async () => {
+        const dir = project({ 'forge.config.yaml': VALID });
 
-      expect(code).toBe(ExitCode.Success);
-      expect(stdout).toContain('npm');
-      expect(stdout).toContain('NPM_TOKEN');
-      expect(stdout).not.toMatch(/npm_\w{12}/);
-    });
+        const { stdout, code } = await forge(['config', 'credentials'], dir);
 
-    it('marks an unset credential as not set', async () => {
-      const dir = project({ 'forge.config.yaml': VALID });
+        expect(code).toBe(ExitCode.Success);
+        expect(stdout).toContain('npm');
+        expect(stdout).toContain('NPM_TOKEN');
+        // A token would appear as a long opaque run after the provider name.
+        // The variable name is safe to show; its value never is.
+        expect(stdout).not.toMatch(/npm_[A-Za-z0-9]{20,}/);
+      },
+      GITHUB_TIMEOUT_MS,
+    );
 
-      const { stdout } = await forge(['config', 'credentials'], dir);
+    it(
+      'marks an unset credential as not set',
+      async () => {
+        const dir = project({ 'forge.config.yaml': VALID });
 
-      expect(stdout).toMatch(/pypi — not set/);
-    });
+        const { stdout } = await forge(['config', 'credentials'], dir, {
+          NPM_TOKEN: '',
+          PYPI_TOKEN: '',
+          GITHUB_TOKEN: '',
+        });
+
+        // pypi is disabled in VALID and PYPI_TOKEN is explicitly blank, so the
+        // result is deterministic regardless of the developer's shell.
+        expect(stdout).toContain('pypi');
+        expect(stdout).toContain('PYPI_TOKEN');
+        expect(stdout).toMatch(/pypi — not set/);
+      },
+      GITHUB_TIMEOUT_MS,
+    );
   });
 
   describe('help', () => {

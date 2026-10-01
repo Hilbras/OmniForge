@@ -110,18 +110,21 @@ describe('forge CLI', () => {
   });
 
   describe('provider group', () => {
-    it('reports no providers registered rather than failing', async () => {
+    it('lists the registered providers', async () => {
       const { stdout, code } = await forge(['provider', 'list']);
 
       expect(code).toBe(0);
-      expect(stdout).toContain('No providers registered yet.');
+      // GitHub landed in Phase 3; npm and PyPI join in Phases 6 and 7.
+      expect(stdout).toContain('github');
     });
 
-    it('reports capabilities with nothing registered', async () => {
+    it('reports capabilities for each registered provider', async () => {
       const { stdout, code } = await forge(['provider', 'capabilities']);
 
       expect(code).toBe(0);
-      expect(stdout).toContain('No providers registered yet.');
+      expect(stdout).toContain('github');
+      expect(stdout).toContain('capabilities:');
+      expect(stdout).toContain('verify');
     });
 
     it('has help for the provider group', async () => {

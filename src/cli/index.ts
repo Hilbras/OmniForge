@@ -23,6 +23,7 @@ import {
   type Console as TerminalConsole,
 } from '../ui/theme.js';
 import { registerConfigCommand } from './commands/config.js';
+import { registerGitHubCommand } from './commands/github.js';
 import { ExitCode, exitCodeFor } from './exit-codes.js';
 
 // Re-exported so library consumers and tests can branch on CLI outcomes.
@@ -125,8 +126,43 @@ export function buildProgram(term: TerminalConsole = buildConsole()): Command {
     env: process.env,
     palette: term.palette,
   });
+  registerGitHubCommand(program, {
+    write: (text) => process.stdout.write(text),
+    writeError: (text) => process.stderr.write(text),
+    env: process.env,
+    palette: term.palette,
+    confirm: askYesNo,
+  });
 
   return program;
+}
+
+/**
+ * Ask for confirmation before a destructive action.
+ *
+ * Reads from stdin. Non-interactive runs (CI, pipes) answer no rather than
+ * hanging or auto-approving — a script should pass `--yes` deliberately.
+ */
+function askYesNo(question: string): Promise<boolean> {
+  if (!process.stdin.isTTY) {
+    process.stderr.write(
+      `\u001b[2mRefusing to continue without confirmation. Re-run with --yes.\u001b[0m\n`,
+    );
+    return Promise.resolve(false);
+  }
+
+  return new Promise<boolean>((resolve) => {
+    const onData = (chunk: Buffer): void => {
+      const answer = chunk.toString().trim().toLowerCase();
+      process.stdin.removeListener('data', onData);
+      process.stdin.pause();
+      resolve(answer === 'y' || answer === 'yes');
+    };
+
+    process.stdout.write(`\u001b[33m?\u001b[0m ${question} [y/N] `);
+    process.stdin.resume();
+    process.stdin.on('data', onData);
+  });
 }
 
 /**
