@@ -11,8 +11,8 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.2.0 — configuration.** The provider contract, error taxonomy, and
-> `forge.config.yaml` system are in place and tested. Providers and the
+> **Status: v0.3.0 — GitHub provider.** The provider contract, configuration system,
+> and the first real provider are in place and tested. npm, PyPI, and the
 > `forge release` command land in later phases. See [Roadmap](#roadmap).
 
 ---
@@ -62,11 +62,33 @@ forge config show         # resolved configuration, secrets never shown
 forge config validate     # every problem at once, exits 2 on failure
 forge config credentials  # what is available, never any value
 forge provider list
+forge github status       # auth, repository, branch, dirty state
 ```
 
 `forge provider list` is intentionally empty today — providers register
 themselves as they are implemented. That emptiness is the point: it proves Core
 drives entirely through the registry.
+
+## Releasing to GitHub
+
+```bash
+forge github status                      # check auth and working tree first
+forge github tag --release-version 1.2.3 --push
+forge github release --release-version 1.2.3
+```
+
+Release notes are generated from your `CHANGELOG.md`, a configured template, or
+the commits since the last tag — in that order. Mutating commands ask before
+writing and refuse without `--yes` when stdin is not a terminal, so nothing is
+published from an unattended script by accident.
+
+An existing tag or release is always reported rather than overwritten.
+
+> Note the flag name: `--release-version`, not `--version`. Commander routes a
+> subcommand option named `--version` to the root program's version handler, so
+> `forge github release --version 1.2.3` would print the version and exit.
+
+---
 
 ## Configuration
 
@@ -105,7 +127,7 @@ Full reference: [`docs/configuration.md`](docs/configuration.md).
 | 0     | Foundation, CLI, provider contract         | Done                          |
 | 1     | `forge.config.yaml` loading and validation | Done                          |
 | 2     | Provider registry and lifecycle            | Contract done, wiring planned |
-| 3     | GitHub provider                            | Planned                       |
+| 3     | GitHub provider                            | Done                          |
 | 4     | Version management                         | Planned                       |
 | 5     | Check and build engine                     | Planned                       |
 | 6     | npm provider                               | Planned                       |

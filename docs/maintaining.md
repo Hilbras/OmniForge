@@ -57,30 +57,32 @@ estimating.
 
 ### npm propagation is slow and the local proxy caches it
 
-After `npm publish` returns, the version can take 1-4 minutes to appear. During
-that window `npm view` and `npm install` may 404 or report `notarget` **even
-though the publish succeeded** — the metadata GET is served from a stale proxy
-cache while the write path is authoritative.
+After `npm publish` returns, the version can take minutes to appear. During that
+window `npm view` and `npm install` may 404 or report `notarget` **even though
+the publish succeeded** — the metadata GET is served from a stale proxy cache
+while the write path is authoritative.
 
-How to tell whether a publish actually landed:
-
-```bash
-npm publish --access public   # retry deliberately
-```
-
-- `E403 ... You cannot publish over the previously published versions: X.Y.Z`
-  → **the version is live.** This is the reliable signal.
-- Success (a fresh version) → it had not landed; try again later.
-
-Never burn a new version number to work around this; the original one is fine.
-
-To install despite the cache:
+To confirm a publish landed, **wait, then retry**:
 
 ```bash
-npm install @hilbras/forge@0.1.1 --prefer-online
-# or
-npm install https://registry.npmjs.org/@hilbras/forge/-/forge-0.1.1.tgz
+npm publish --access public   # deliberately
 ```
+
+- `E403 ... cannot publish over the previously published versions: X` → live.
+- `E409 ... cannot publish over previously staged version "X"` → **staged, not
+  yet live.** This one clears on its own, sometimes after 15+ minutes. Do NOT
+  bump to a new version for an E409 — check the registry again first. Bumping
+  burns a version number permanently.
+- Success → it had not landed; wait longer.
+
+To read registry truth past the proxy, unset the proxy vars:
+
+```bash
+env -u https_proxy -u HTTPS_PROXY -u http_proxy -u HTTP_PROXY \\
+  curl -s "https://registry.npmjs.org/@hilbras%2Fforge"
+```
+
+To install despite the cache: `npm install <pkg>@<v> --prefer-online`.
 
 ### Version bumps are manual
 
