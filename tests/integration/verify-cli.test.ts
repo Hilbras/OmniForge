@@ -6,7 +6,7 @@
  * this repository's own published release rather than a stub.
  */
 
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -55,6 +55,37 @@ const PUBLISHED: string | null = await (async () => {
 
 const SKIP_LIVE = PUBLISHED === null;
 
+/**
+ * Whether this environment can authenticate to GitHub.
+ *
+ * The happy path asserts that *both* providers verify, which needs a credential
+ * a CI runner does not have. Without this the suite failed on every GitHub-hosted
+ * run: npm verified, GitHub could not, and the test reported a cross-provider
+ * mismatch that was really a missing token.
+ *
+ * `gh auth token` is consulted rather than assumed, because a developer machine
+ * authenticates through `gh` with no environment variable at all — checking only
+ * `GITHUB_TOKEN` would skip the test for exactly the people who can run it.
+ *
+ * `FORGE_REQUIRE_GITHUB_AUTH=0` forces this off, which is how the skip path is
+ * tested without a real credential rather than only being trusted.
+ */
+const HAS_GITHUB_AUTH = (() => {
+  if (process.env.FORGE_REQUIRE_GITHUB_AUTH === '0') return false;
+  if (process.env.GITHUB_TOKEN !== undefined && process.env.GITHUB_TOKEN.length > 0) return true;
+  try {
+    const result = execFileSync('gh', ['auth', 'token'], {
+      timeout: 20_000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return result.toString().trim().length > 0;
+  } catch {
+    return false;
+  }
+})();
+
+const SKIP_TWO_PROVIDER = SKIP_LIVE || !HAS_GITHUB_AUTH;
+
 async function forge(args: string[], cwd = REPO_ROOT): Promise<Run> {
   try {
     const { stdout, stderr } = await execFileAsync(process.execPath, [CLI, ...args], {
@@ -78,7 +109,7 @@ describe('forge verify', () => {
     expect(stdout).toContain('Examples:');
   });
 
-  it.skipIf(SKIP_LIVE)('verifies the published release across live providers', async () => {
+  it.skipIf(SKIP_TWO_PROVIDER)('verifies the published release across live providers', async () => {
     // The newest published version: its dist-tag is authoritative, which is what
     // makes this a real check rather than a self-fulfilling one.
     const { stdout, code } = await forge(['verify', PUBLISHED as string]);
@@ -87,6 +118,46 @@ describe('forge verify', () => {
     expect(stdout).toContain('npm');
     expect(stdout).toContain('verified across');
     expect(code).toBe(0);
+  });
+
+  it.skipIf(SKIP_LIVE)('verifies the published version against npm alone', async () => {
+    // Runs everywhere, credentials or not. A GitHub-hosted runner has no token,
+    // so asserting only on npm keeps a real registry assertion in CI rather than
+    // skipping the whole live path.
+    const { stdout, stderr, code } = await forge([
+      'verify',
+      PUBLISHED as string,
+      '--provider',
+      'npm',
+    ]);
+
+    expect(stdout + stderr).toMatch(/verified across 1 provider/);
+    expect(code).toBe(0);
+  });
+
+  it.skipIf(SKIP_LIVE)('emits a machine-readable report for the published version', async () => {
+    const { stdout } = await forge([
+      'verify',
+      PUBLISHED as string,
+      '--provider',
+      'npm',
+      '--report',
+      'json',
+    ]);
+
+    const start = stdout.indexOf('{\n');
+    expect(start, 'expected a JSON object').toBeGreaterThanOrEqual(0);
+    const parsed = JSON.parse(stdout.slice(start)) as { integrity?: { passed?: boolean } };
+
+    expect(parsed.integrity?.passed).toBe(true);
+  });
+
+  it('skips the two-provider path when GitHub auth is absent', () => {
+    // Guards the guard: without this, a change that made HAS_GITHUB_AUTH always
+    // true would restore the CI failure this was meant to fix, and nothing would
+    // notice because the tests pass either way locally.
+    expect(typeof HAS_GITHUB_AUTH).toBe('boolean');
+    expect(SKIP_TWO_PROVIDER).toBe(SKIP_LIVE || !HAS_GITHUB_AUTH);
   });
 
   it('fails for a version that was never released', async () => {
@@ -114,7 +185,7 @@ describe('forge verify', () => {
     expect(stdout).not.toContain('github');
   });
 
-  it.skipIf(SKIP_LIVE)('emits a JSON report', async () => {
+  it.skipIf(SKIP_TWO_PROVIDER)('emits a JSON report', async () => {
     const { stdout } = await forge(['verify', PUBLISHED as string, '--report', 'json']);
 
     // Anchored to the pretty-printed root object, not the first `{` in the

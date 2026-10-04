@@ -1,0 +1,33 @@
+# Normalise line endings in the repository, and keep them normalised in the
+# working tree.
+#
+# Without this, Windows checkouts materialise CRLF and `prettier --check` reports
+# every file as misformatted — which is how CI came to fail on all three Windows
+# jobs while passing everywhere else. It was not a formatting problem; the files
+# were correct and the checkout disagreed with them.
+* text=auto eol=lf
+
+# Anything that must stay CRLF, explicitly.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files: never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.whl binary
+*.tgz binary
+*.woff binary
+*.woff2 binary
+
+# Generated output — readable in diffs, but not worth formatting.
+dist/** linguist-generated=true
+docs/cli.md linguist-generated=true
+coverage/** linguist-generated=true

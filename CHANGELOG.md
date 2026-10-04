@@ -5,6 +5,41 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **CI had never passed.** Five runs, all red, and the cause was not the code.
+  Two separate faults, both invisible locally:
+
+  - **Format check failed on all three Windows jobs.** `prettier --check` reported
+    107 files as misformatted because a Windows checkout materialises CRLF while the
+    committed files are LF. Added `.gitattributes` with `* text=auto eol=lf`, plus
+    explicit CRLF for `.bat`/`.cmd`/`.ps1` and `binary` for images and archives.
+    Without it the suite is unrunnable on Windows — which means the "all three
+    platforms" claim in the README was untested.
+  - **Tests failed on every platform.** `verify-cli.test.ts` asserted that _both_
+    providers verify, which needs a GitHub credential a CI runner does not have.
+    npm verified, GitHub could not, and the test reported a cross-provider
+    mismatch that was really a missing token. The two-provider assertions now run
+    only where a credential exists (`GITHUB_TOKEN` or a `gh auth token` session),
+    and two new npm-only live tests run everywhere, so CI still exercises a real
+    registry. `FORGE_REQUIRE_GITHUB_AUTH=0` forces the skip path so it is tested
+    rather than trusted.
+
+### Added
+
+- **Repository topics** — 15 of them, so the project is discoverable through
+  GitHub search: `release-automation`, `versioning`, `semver`, `devops`, `ci-cd`,
+  `publishing`, `package-management`, `npm`, `pypi`, `github-actions`,
+  `developer-tools`, `cli`, `typescript`, `monorepo-tooling`, `supply-chain`.
+- **README rebuilt**: nine badges, all pointing at real endpoints, plus a
+  generated table of contents and a real terminal capture in the hero.
+
+The hero output was produced by running the CLI, not written from memory — which
+caught two invented details (`checks test, lint` and `2 check(s) passed`) before
+they shipped. Every badge value was confirmed against the registry and the API.
+
 ## [1.0.0] — 2026-10-04
 
 The stable release. Every phase of the plan is implemented, and this entry
@@ -31,7 +66,7 @@ Core imports a provider or branches on a platform name.
 
 | Check                          | Result                                                        |
 | ------------------------------ | ------------------------------------------------------------- |
-| Tests                          | 841 passing across 30 files                                   |
+| Tests                          | 844 passing across 30 files                                   |
 | Coverage                       | per-directory thresholds, enforced by `npm test`              |
 | Lint, format, typecheck, build | clean                                                         |
 | `npm audit`                    | 0 vulnerabilities                                             |
@@ -99,7 +134,7 @@ rc.1, which is the kind of thing only a real user hits.
 
 ### Notes
 
-- 841 tests passing, up from 833. Lint, format, typecheck, build, and the generated
+- 844 tests passing, up from 833. Lint, format, typecheck, build, and the generated
   CLI reference all clean; 0 vulnerabilities.
 
 - Still unverified: a real PyPI upload. Unchanged from rc.1. See that release's

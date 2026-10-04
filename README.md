@@ -1,5 +1,17 @@
 # Hilbras Forge
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/@hilbras/forge"><img src="https://img.shields.io/npm/v/@hilbras/forge?style=flat-square&labelColor=gray" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@hilbras/forge"><img src="https://img.shields.io/npm/dm/@hilbras/forge?style=flat-square&labelColor=gray" alt="npm downloads"></a>
+  <a href="https://github.com/Hilbras/hilbras-forge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Hilbras/hilbras-forge/ci.yml?style=flat-square&labelColor=gray" alt="CI"></a>
+  <a href="https://github.com/Hilbras/hilbras-forge/releases/latest"><img src="https://img.shields.io/github/v/release/hilbras-forge?style=flat-square&labelColor=gray&include_prereleases&sort=semver" alt="release"></a>
+  <a href="https://github.com/Hilbras/hilbras-forge/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square&labelColor=gray" alt="MIT licensed"></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D22.12-5FA04E?style=flat-square&labelColor=gray" alt="Node 22.12+"></a>
+  <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/typescript-strict-3178C6?style=flat-square&labelColor=gray" alt="TypeScript strict"></a>
+  <img src="https://img.shields.io/badge/tests-844-8A2BE2?style=flat-square&labelColor=gray" alt="844 tests">
+  <a href="https://github.com/Hilbras/hilbras-forge/graphs/contributors"><img src="https://img.shields.io/github/contributors/Hilbras/hilbras-forge?style=flat-square&labelColor=gray" alt="Contributors"></a>
+</p>
+
 **Unified release, publishing, versioning, and package management platform.**
 
 Forge is a provider-based release orchestrator. One command validates your project,
@@ -14,13 +26,75 @@ Project → Config → Validation → Version → Checks → Build
 > **Status: v1.0.0.** Every phase of the plan is implemented. `forge release`
 > runs the whole workflow — validate, check, version, tag, publish, verify, report —
 > across GitHub, npm, and PyPI, and refuses to report success when the providers
-> disagree. 841 tests.
+> disagree. 844 tests.
 >
 > One caveat, stated plainly: **no real PyPI upload has been performed.** The
 > provider is implemented and unit-tested, and a real sdist and wheel were built
 > and passed `twine check`, but the credentials could not be confirmed from an
 > environment whose proxy intercepts `upload.pypi.org`. Use a throwaway project
 > name for your first PyPI publish. See [Project status](#project-status).
+
+---
+
+```console
+$ forge init
+Forge init
+directory    /home/you/my-lib
+name         @acme/my-lib
+ecosystem    npm
+version      1.4.0
+checks       test, lint
+
+✓ Wrote /home/you/my-lib/forge.config.yaml
+
+$ forge release --dry-run
+Release Plan
+project    @acme/my-lib
+version    1.4.1
+tag        v1.4.1
+providers  github, npm
+checks     test, lint, build
+
+Dry run — no changes will be made.
+✓ checks         3 check(s) passed
+✓ version        1.4.0 → 1.4.1
+✓ write-version  wrote 1.4.1 for the rehearsal, then restored it
+✓ tag            would create v1.4.1
+✓ publish        would publish github@1.4.1
+✓ publish        would publish npm@1.4.1
+
+No changes were made.
+```
+
+<p align="center">
+  <a href="#install"><strong>Install</strong></a> ·
+  <a href="#usage"><strong>Usage</strong></a> ·
+  <a href="docs/provider-development.md"><strong>Write a provider</strong></a> ·
+  <a href="docs/getting-started.md"><strong>Getting started</strong></a> ·
+  <a href="docs/architecture.md"><strong>Architecture</strong></a> ·
+  <a href="docs/troubleshooting.md"><strong>Troubleshooting</strong></a>
+</p>
+
+## Contents
+
+- [Why provider-based](#why-provider-based)
+- [Install](#install)
+- [Usage](#usage)
+- [Versions](#versions)
+- [Checks](#checks)
+- [Releasing](#releasing)
+- [Verifying a release](#verifying-a-release)
+- [Publishing to npm](#publishing-to-npm)
+- [Releasing to GitHub](#releasing-to-github)
+- [Configuration](#configuration)
+- [Project status](#project-status)
+  - [What is verified](#what-is-verified)
+  - [What is not](#what-is-not)
+- [Roadmap](#roadmap)
+- [Development](#development)
+- [Security](#security)
+- [Documentation](#documentation)
+- [License](#license)
 
 ---
 
@@ -328,7 +402,7 @@ Full reference: [`docs/configuration.md`](docs/configuration.md).
 | 9     | Verification and integrity                 | Done — v0.9.0                              |
 | 10    | Release reporting                          | Done — v0.9.0                              |
 | 11    | Security hardening                         | Done — v0.9.0                              |
-| 12    | Testing and reliability                    | Done — v0.9.0, 841 tests                   |
+| 12    | Testing and reliability                    | Done — v0.9.0, 844 tests                   |
 | 13    | CLI and developer experience               | Done — v0.9.1                              |
 | 14    | Documentation                              | Done — v0.9.2                              |
 | 15    | Release candidate                          | Done — v1.0.0-rc.1, rc.2                   |
@@ -338,7 +412,7 @@ Full reference: [`docs/configuration.md`](docs/configuration.md).
 
 | Check                          | Result                                               |
 | ------------------------------ | ---------------------------------------------------- |
-| Tests                          | 841 passing, coverage thresholds enforced            |
+| Tests                          | 844 passing, coverage thresholds enforced            |
 | Lint, format, typecheck, build | clean                                                |
 | `npm audit`                    | 0 vulnerabilities                                    |
 | CI matrix                      | Node 22.12, 24, 26 × Linux, macOS, Windows           |
