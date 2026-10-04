@@ -482,7 +482,7 @@ npm test
 | `npm run dev`           | Run the CLI from source via tsx |
 
 CI runs lint, format check, typecheck, tests, and build on Linux, Windows, and
-macOS, and  macOS, and verifies the published tarball excludes tests and sources.
+macOS, and verifies the published tarball excludes tests and sources.
 
 ---
 
