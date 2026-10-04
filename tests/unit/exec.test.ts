@@ -354,8 +354,22 @@ describe('buildInvocation', () => {
     const { program, args } = buildInvocation('npm.cmd', ['--version']);
 
     expect(program.toLowerCase()).toContain('cmd');
+    const line = args[3] ?? '';
     expect(args.slice(0, 3)).toEqual(['/d', '/s', '/c']);
-    expect(args[3]).toContain('npm.cmd');
-    expect(args[3]).toContain('--version');
+    // The command name must be bare. Quoting it leaves cmd looking for a program
+    // literally called `"npm.cmd"`, which fails with 'is not recognized' — that is
+    // what the Windows jobs reported when every argument was quoted.
+    expect(line.startsWith('npm.cmd ')).toBe(true);
+    expect(line).not.toContain('"npm.cmd"');
+  });
+
+  it('produces the command line cmd.exe actually parses', () => {
+    // The precise shape Windows receives, so a change in quoting is visible
+    // without waiting for a Windows runner.
+    if (process.platform !== 'win32') return;
+
+    const { args } = buildInvocation('npm.cmd', ['pack', '--dry-run', '--json']);
+
+    expect(args[3]).toBe('npm.cmd "pack" "--dry-run" "--json"');
   });
 });

@@ -106,14 +106,19 @@ export function buildInvocation(
     return { program, args: [...args] };
   }
 
-  // Every argument is quoted, including ones with no metacharacters. With /s in
-  // play, cmd strips the outermost pair of quotes from the command line and
-  // leaves the rest alone — so a plain argument must be quoted too, or a value
-  // containing whitespace would split into two arguments after stripping.
+  // The command name itself is left bare. With /s, cmd strips the outermost pair
+  // of quotes from the command line and then treats the first token as the
+  // program; quoting the program name leaves a literal `"npm.cmd"` to look up,
+  // which fails with "'npm.cmd' is not recognized as an internal or external
+  // command" — observed on the Windows CI jobs.
+  //
+  // Arguments are quoted, including ones with no metacharacters: cmd strips only
+  // the outermost pair, so an unquoted value containing whitespace would split
+  // into two arguments after stripping.
   //
   // /d skips AutoRun registry entries, which would otherwise execute on every
   // single invocation.
-  const line = [program, ...args].map(quoteCmdArgument).join(' ');
+  const line = [program, ...args.map(quoteCmdArgument)].join(' ');
 
   return { program: process.env.ComSpec ?? 'cmd.exe', args: ['/d', '/s', '/c', line] };
 }

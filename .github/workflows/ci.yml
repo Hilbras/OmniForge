@@ -47,11 +47,16 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
-        run: npm test
-
+      # The integration tests execute the built CLI, so the build has to exist
+      # before they run. With the build after the tests, a cold checkout either
+      # skipped those tests or ran them against a stale dist/ — which is how
+      # `does not provide an export named registerReleaseCommand` appeared on one
+      # macOS job while the source and the committed dist both exported it.
       - name: Build
         run: npm run build
+
+      - name: Test
+        run: npm test
 
       # cli.md is generated from the built binary. Regenerating it here means a
       # changed help text fails CI instead of leaving the docs quietly wrong.
