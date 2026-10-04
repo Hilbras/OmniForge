@@ -17,6 +17,8 @@ import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { resolveProgram } from '../../src/build/exec.js';
+
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..', '..');
 const NUL = 0;
 
@@ -76,7 +78,7 @@ describe('the package manifest', () => {
   it('is publishable as a dry run', { timeout: 240_000 }, () => {
     // The real check npm makes. Slower than the assertions above, but it is the
     // only one that cannot be fooled by something npm treats specially.
-    const result = execFileSync('npm', ['pack', '--dry-run', '--json'], {
+    const result = execFileSync(resolveProgram('npm'), ['pack', '--dry-run', '--json'], {
       cwd: ROOT,
       encoding: 'utf8',
       timeout: 180_000,

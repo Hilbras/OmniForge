@@ -12,6 +12,8 @@
  */
 
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { delimiter, extname, join } from 'node:path';
 
 import { CheckError, ErrorCode } from '../errors/index.js';
 
@@ -60,6 +62,56 @@ const DEFAULT_GRACE_MS = 2_000;
 const SUSPICIOUS = /[;&|`$><\n]/;
 
 /**
+ * Resolve a command name to something spawnable on this platform.
+ *
+ * On Windows a package installed by npm is a batch file — `npm.cmd`, and
+ * `twine.exe` only if a console-script wrapper was generated. Node's spawn with
+ * `shell: false` does not consult PATHEXT, so `spawn('npm', ...)` fails there
+ * with ENOENT even though npm is installed and on PATH. Using a shell would fix
+ * the lookup and destroy the security property this module exists for, so the
+ * extension is appended instead.
+ *
+ * Real executables such as `git` and `python` are untouched, and a command that
+ * already carries an extension is left alone.
+ */
+export function resolveProgram(command: string): string {
+  if (process.platform !== 'win32') return command;
+  if (command.includes('/') || command.includes('\\')) return command;
+  if (extname(command).length > 0) return command;
+
+  // A .cmd shim is what npm, npx and twine install; .exe and .bat are checked
+  // for tools that ship those instead.
+  for (const extension of ['.cmd', '.exe', '.bat']) {
+    if (findOnPath(`${command}${extension}`)) return `${command}${extension}`;
+  }
+
+  return command;
+}
+
+/**
+ * Search every PATH directory for a file.
+ *
+ * `existsSync('npm.cmd')` would only look in the current directory, which is
+ * never where it is. Windows resolves a bare command name by walking PATH and
+ * appending each PATHEXT extension, so this does the same thing explicitly
+ * rather than asking the OS, which is what fails under `shell: false`.
+ */
+function findOnPath(fileName: string): boolean {
+  const pathValue = process.env.PATH ?? '';
+  for (const dir of pathValue.split(delimiter)) {
+    if (dir.length === 0) continue;
+    try {
+      if (existsSync(join(dir, fileName))) return true;
+    } catch {
+      // An unreadable or malformed PATH entry is not a reason to fail; keep
+      // looking, exactly as the OS resolver would.
+    }
+  }
+
+  return false;
+}
+
+/**
  * Run a command with an argument array and no shell.
  *
  * @throws CheckError when the command cannot be spawned at all (not found, not
@@ -78,11 +130,12 @@ export async function execute(
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const grace = options.killGraceMs ?? DEFAULT_GRACE_MS;
   const started = Date.now();
+  const program = resolveProgram(command);
 
   return new Promise<ExecResult>((resolve, reject) => {
     let child;
     try {
-      child = spawn(command, [...args], {
+      child = spawn(program, [...args], {
         // No shell. This is the entire point of the module.
         shell: false,
         cwd: options.cwd,

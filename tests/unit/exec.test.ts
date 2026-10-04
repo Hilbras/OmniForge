@@ -11,7 +11,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { execute, executeOrThrow, hasShellMetacharacters } from '../../src/build/exec.js';
+import {
+  execute,
+  executeOrThrow,
+  hasShellMetacharacters,
+  resolveProgram,
+} from '../../src/build/exec.js';
 import { CheckError } from '../../src/errors/index.js';
 
 describe('execute', () => {
@@ -249,5 +254,39 @@ describe('hasShellMetacharacters', () => {
 
   it('is false for an empty list', () => {
     expect(hasShellMetacharacters([])).toBe(false);
+  });
+});
+
+describe('resolveProgram', () => {
+  it('leaves a command untouched on this platform when it is already spawnable', () => {
+    // On POSIX the resolver is a no-op, so this asserts the identity contract
+    // rather than the Windows branch — which is all that can be observed here.
+    // The Windows behaviour is covered by the CI matrix on windows-latest.
+    const resolved = resolveProgram('git');
+
+    if (process.platform === 'win32') {
+      expect(resolved.endsWith('.cmd') || resolved.endsWith('.exe') || resolved === 'git').toBe(
+        true,
+      );
+    } else {
+      expect(resolved).toBe('git');
+    }
+  });
+
+  it('never rewrites a command that carries a path or an extension', () => {
+    // A path or explicit extension is already unambiguous; appending to it would
+    // produce a name that cannot exist.
+    for (const command of ['C:\\Program Files\\Git\\cmd\\git.exe', '/usr/bin/git', 'git.exe']) {
+      expect(resolveProgram(command)).toBe(command);
+    }
+  });
+
+  it('returns a name that spawn can actually resolve', async () => {
+    // The property that matters: whatever comes back must be executable. On
+    // Windows this is the assertion that would have caught the ENOENT.
+    const result = await execute(resolveProgram('npm'), ['--version'], { timeoutMs: 60_000 });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toMatch(/\d+\./);
   });
 });

@@ -8,6 +8,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { resolveProgram } from '../build/exec.js';
 
 import { AuthError, ErrorCode } from '../errors/index.js';
 import type { ProviderName } from '../configuration/schema.js';
@@ -42,7 +43,7 @@ export function resolveFromEnv(env: NodeJS.ProcessEnv, envVar: string): Resolved
 /** The signed-in GitHub account, for display. Returns undefined when unknown. */
 export function ghIdentity(): string | undefined {
   try {
-    return execFileSync('gh', ['api', 'user', '--jq', '.login'], {
+    return execFileSync(resolveProgram('gh'), ['api', 'user', '--jq', '.login'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 10_000,
@@ -65,7 +66,7 @@ export function resolveGitHub(env: NodeJS.ProcessEnv): ResolvedCredential {
   if (fromEnv.present) return fromEnv;
 
   try {
-    const token = execFileSync('gh', ['auth', 'token'], {
+    const token = execFileSync(resolveProgram('gh'), ['auth', 'token'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 10_000,
