@@ -11,11 +11,10 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.9.0 — testing and reliability.** `forge release` runs the whole
-> workflow, `forge verify` checks afterward that every provider agrees on one
-> version, and credential redaction is enforced at every output sink. 708 tests,
-> with coverage thresholds that fail the build. GitHub and npm are implemented;
-> PyPI is pending credentials. See [Roadmap](#roadmap).
+> **Status: v0.9.1 — CLI UX.** `forge init` generates a working config from your
+> project, every command documents itself with examples, and a failure always
+> keeps its explanation on the same stream as the failure. GitHub and npm are
+> implemented; PyPI is pending credentials. See [Roadmap](#roadmap).
 
 ---
 
@@ -58,22 +57,35 @@ npx @hilbras/forge --help
 
 ## Usage
 
+Starting from nothing:
+
+```bash
+forge init                # detect the project, write forge.config.yaml
+forge config validate     # every problem at once, exits 2 on failure
+forge check               # run the configured checks
+forge release --dry-run   # the whole workflow, changing nothing
+```
+
+`forge init` reads `package.json` or `pyproject.toml` and fills the config in
+from what it finds. It deliberately leaves `github.repository` as a comment
+rather than guessing: an owner/name silently pointed at the wrong repository is
+worse than an obvious blank.
+
+Once set up:
+
 ```bash
 forge --help              # discover commands
 forge --version           # print the installed version
 forge config show         # resolved configuration, secrets never shown
-forge config validate     # every problem at once, exits 2 on failure
 forge config credentials  # what is available, never any value
-forge provider list
+forge provider list       # registered providers
 forge github status       # auth, repository, branch, dirty state
 forge version current     # the project version and where it came from
-forge check               # run the configured checks
 forge npm status          # auth, package, and registry state
+forge verify              # does every provider agree on one version?
 ```
 
-`forge provider list` is intentionally empty today — providers register
-themselves as they are implemented. That emptiness is the point: it proves Core
-drives entirely through the registry.
+Every command documents itself with `forge <command> --help`.
 
 ## Versions
 

@@ -45,6 +45,20 @@ export function registerCheckCommand(program: Command, deps: CheckCommandDeps): 
     .option('--only <names...>', 'Checks to run')
     .option('--verbose-output', "Print each check's stdout and stderr")
     .option('--quiet', 'Print only the summary line')
+    .addHelpText(
+      'after',
+      `
+Checks come from forge.config.yaml. Each runs as an argument array with no
+shell, so a value containing shell metacharacters is data, never syntax.
+
+Examples:
+  $ forge check                 # every configured check
+  $ forge check test lint       # just these two
+  $ forge check --only build    # the same, as a flag
+  $ forge check --verbose-output
+  $ forge check --quiet         # CI: summary line only, exit code is the signal
+`,
+    )
     .action(async (names: string[], flags: Record<string, unknown>) => {
       const c = out();
       const config = resolveConfig({ cwd: process.cwd() });
@@ -56,7 +70,7 @@ export function registerCheckCommand(program: Command, deps: CheckCommandDeps): 
 
       if (requested.length === 0 && Object.keys(config.checks).length === 0) {
         c.warning('No checks are configured.');
-        c.detail('Add a `checks:` section to forge.config.yaml.');
+        c.detailError('Add a `checks:` section to forge.config.yaml.');
         return;
       }
 
@@ -102,6 +116,17 @@ export function registerCheckCommand(program: Command, deps: CheckCommandDeps): 
     .command('test')
     .description('Run the test check')
     .option('--verbose-output', "Print each check's stdout and stderr")
+    .addHelpText(
+      'after',
+      `
+A shortcut for the "test" check in forge.config.yaml — the same engine, the same
+exit code. Add --verbose-output to see what the test runner printed.
+
+Examples:
+  $ forge test
+  $ forge test --verbose-output
+`,
+    )
     .action(async (flags: Record<string, unknown>) => {
       await runNamed(out(), 'test', flags);
     });
@@ -110,6 +135,17 @@ export function registerCheckCommand(program: Command, deps: CheckCommandDeps): 
     .command('build')
     .description('Run the build check')
     .option('--verbose-output', "Print each check's stdout and stderr")
+    .addHelpText(
+      'after',
+      `
+A shortcut for the "build" check in forge.config.yaml. Forge never builds for
+you — this runs the command you configured and reports whether it succeeded.
+
+Examples:
+  $ forge build
+  $ forge build --verbose-output
+`,
+    )
     .action(async (flags: Record<string, unknown>) => {
       await runNamed(out(), 'build', flags);
     });
@@ -127,7 +163,7 @@ async function runNamed(
 
   if (config.checks[name] === undefined) {
     c.warning(`No "${name}" check is configured.`);
-    c.detail(
+    c.detailError(
       `Configured: ${Object.keys(config.checks).join(', ') || 'none'}. Add a "${name}" entry to forge.config.yaml.`,
     );
     process.exitCode = ExitCode.Config;

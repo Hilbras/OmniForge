@@ -92,7 +92,7 @@ Examples:
         } catch (error) {
           const forgeError = toForgeError(error);
           c.failure(`credentials   ${forgeError.message}`);
-          if (forgeError.remediation) c.detail(`Next step: ${forgeError.remediation}`);
+          if (forgeError.remediation) c.detailError(`Next step: ${forgeError.remediation}`);
         }
       }
 
@@ -114,8 +114,8 @@ Examples:
           c.success('working tree  clean');
         } else {
           c.warning(`working tree  ${dirty} uncommitted change(s)`);
-          for (const path of state.dirtyPaths.slice(0, 5)) c.detail(path);
-          if (dirty > 5) c.detail(`…and ${dirty - 5} more`);
+          for (const path of state.dirtyPaths.slice(0, 5)) c.detailError(path);
+          if (dirty > 5) c.detailError(`…and ${dirty - 5} more`);
         }
       }
     });
@@ -243,8 +243,8 @@ Examples:
       const existing = await getReleaseFor(config, deps.env, tag);
       if (existing !== null) {
         c.warning(`A release already exists for ${tag}.`);
-        c.detail(existing.url || existing.tagName);
-        c.detail('Forge never overwrites a release.');
+        c.detailError(existing.url || existing.tagName);
+        c.detailError('Forge never overwrites a release.');
         return;
       }
 

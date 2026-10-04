@@ -27,6 +27,7 @@ import { registerConfigCommand } from './commands/config.js';
 import { registerGitHubCommand } from './commands/github.js';
 import { registerNpmCommand } from './commands/npm.js';
 import { registerReleaseCommand } from './commands/release.js';
+import { registerInitCommand } from './commands/init.js';
 import { registerVerifyCommand } from './commands/verify.js';
 import { registerVersionCommand } from './commands/version.js';
 import { registerCheckCommand } from './commands/check.js';
@@ -149,6 +150,7 @@ export function buildProgram(term: TerminalConsole = buildConsole()): Command {
   registerGitHubCommand(program, { ...sink, env: process.env, confirm: askYesNo });
   registerNpmCommand(program, { ...sink, env: process.env, confirm: askYesNo });
   registerReleaseCommand(program, { ...sink, env: process.env, confirm: askYesNo });
+  registerInitCommand(program, { ...sink });
   registerVerifyCommand(program, { ...sink, env: process.env });
   registerVersionCommand(program, { ...sink, confirm: askYesNo });
   registerCheckCommand(program, { ...sink });

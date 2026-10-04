@@ -82,10 +82,10 @@ Examples:
         } catch (error) {
           const forgeError = toForgeError(error);
           c.failure(forgeError.message);
-          if (forgeError.remediation) c.detail(`Next step: ${forgeError.remediation}`);
+          if (forgeError.remediation) c.detailError(`Next step: ${forgeError.remediation}`);
         }
       } else {
-        c.detail('Set NPM_TOKEN to publish. Reading public packages needs no token.');
+        c.detailError('Set NPM_TOKEN to publish. Reading public packages needs no token.');
       }
 
       const name = config.npm.package;
@@ -126,7 +126,7 @@ Examples:
       } catch (error) {
         const forgeError = toForgeError(error);
         c.failure(forgeError.message);
-        if (forgeError.remediation) c.detail(`Next step: ${forgeError.remediation}`);
+        if (forgeError.remediation) c.detailError(`Next step: ${forgeError.remediation}`);
       }
 
       const name = config.npm.package;
@@ -166,7 +166,7 @@ Examples:
 
       if (prerelease && distTag === 'latest') {
         c.failure(`${version} is a prerelease and cannot be tagged latest.`);
-        c.detail('Use --tag next, or let Forge choose.');
+        c.detailError('Use --tag next, or let Forge choose.');
         return;
       }
 
@@ -178,7 +178,7 @@ Examples:
         const existing = await npm.versionExists(name, version, { registry: config.npm.registry });
         if (existing) {
           c.failure(`${name}@${version} is already published.`);
-          c.detail('npm does not allow overwriting a version.');
+          c.detailError('npm does not allow overwriting a version.');
           return;
         }
 
@@ -204,7 +204,7 @@ Examples:
       } catch (error) {
         const forgeError = toForgeError(error);
         c.failure(forgeError.message);
-        if (forgeError.remediation) c.detail(`Next step: ${forgeError.remediation}`);
+        if (forgeError.remediation) c.detailError(`Next step: ${forgeError.remediation}`);
       }
     });
 
@@ -244,7 +244,7 @@ Examples:
 
       if (!npm.isDistTag(tag)) {
         c.failure(`"${tag}" is not a dist-tag Forge manages.`);
-        c.detail(`Known: ${npm.VALID_DIST_TAGS.join(', ')}.`);
+        c.detailError(`Known: ${npm.VALID_DIST_TAGS.join(', ')}.`);
         return;
       }
 
@@ -269,7 +269,7 @@ Examples:
 
       if (target === null) {
         c.failure('--to <version> is required to move a dist-tag.');
-        c.detail(`Example: forge npm dist-tag --tag next --to 1.3.0`);
+        c.detailError(`Example: forge npm dist-tag --tag next --to 1.3.0`);
         return;
       }
 
@@ -318,7 +318,7 @@ Examples:
       } catch (error) {
         const forgeError = toForgeError(error);
         c.failure(forgeError.message);
-        if (forgeError.remediation) c.detail(`Next step: ${forgeError.remediation}`);
+        if (forgeError.remediation) c.detailError(`Next step: ${forgeError.remediation}`);
       }
     });
 }

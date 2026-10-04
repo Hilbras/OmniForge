@@ -90,7 +90,7 @@ Examples:
 
       if (report.entries.length === 0) {
         c.warning('No providers are enabled, so there is nothing to verify.');
-        c.detail('Enable at least one in forge.config.yaml.');
+        c.detailError('Enable at least one in forge.config.yaml.');
         process.exitCode = ExitCode.Config;
         return;
       }
@@ -115,7 +115,7 @@ Examples:
         c.success(summarize(report));
       } else {
         c.failure(summarize(report));
-        for (const problem of report.problems) c.detail(problem);
+        for (const problem of report.problems) c.detailError(problem);
       }
 
       const reportFlag = flags['report'];

@@ -9,6 +9,54 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.9.1] — 2026-10-04
+
+Phase 13 — CLI UX and developer experience.
+
+This phase started as polish and turned into three functional additions plus one
+output bug that affected every command.
+
+### Added
+
+- **`forge init`** — generates a working `forge.config.yaml` by reading
+  `package.json` or `pyproject.toml`, then shows what it detected before writing.
+  The spec has listed `forge init` since Phase 13; what actually existed was
+  `forge config init`, a Phase 1 stub still printing "generated in Phase 1 Task 7".
+  It never got implemented, so the command everyone tries first did nothing.
+- Ecosystems are **data, not branches**. The architecture test rejected the first
+  version of this file for branching on the strings "npm" and "python" — which is
+  the coupling §4.1 forbids: adding a Rust or Go project would have meant editing
+  this file's conditionals. Adding one is now a row in `ECOSYSTEMS`. The guard
+  caught a real violation in the same commit it was written to catch one.
+- Examples for `forge check`, `forge test`, and `forge build`, which had none.
+  All 11 top-level commands now document usage, arguments, options, and examples.
+- 18 tests over detection and rendering, against real temp directories rather
+  than a mocked filesystem. The generated YAML is parsed with an independent
+  parser and run through the real schema validator, so "it wrote a file" is never
+  mistaken for "it wrote a usable file".
+
+### Fixed
+
+- **A failure could be split across two output streams.** `warning` and
+  `failure` write to stderr; `detail` writes to stdout. Every command paired them,
+  so `forge config init > log` recorded "pass --force to overwrite" while dropping
+  the warning explaining what passed — a log reading as an instruction with no
+  problem attached, which is worse than silence. Added `detailError` and moved 23
+  call sites across 7 files. Invisible at a terminal, which is why it survived:
+  the terminal shows both lines perfectly.
+
+- **`forge init` printed `[object Object]` for the ecosystem.** Caught by running
+  the command against real fixtures, not by any test.
+
+### Notes
+
+- The regression guard for the stream bug is deliberately narrow — a plain
+  `detail` on the line directly after a `warning`/`failure`. Two looser versions
+  misfired on the common, correct shape of a failure branch that returns followed
+  by a success branch printing details, so the rule is held to account by four
+  explicit tests.
+- 741 tests passing, up from 708.
+
 ## [0.9.0] — 2026-10-04
 
 Phase 12 — testing and reliability. 708 tests, up from 628.
@@ -498,6 +546,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.9.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.7.0...v0.8.0

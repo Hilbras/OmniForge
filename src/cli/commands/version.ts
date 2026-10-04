@@ -89,7 +89,7 @@ Examples:
         c.warning(
           `${published.source} reports ${published.version}, but the files say ${state.current}.`,
         );
-        c.detail('The next release should be above both.');
+        c.detailError('The next release should be above both.');
       }
     });
 
@@ -137,14 +137,14 @@ Examples:
 
       if (duplicate.duplicate) {
         c.warning(`Version ${target} is already the current version.`);
-        c.detail('Nothing would change.');
+        c.detailError('Nothing would change.');
         return;
       }
 
       const published = await detectPublishedVersion(config);
       if (published.version !== null && target === published.version) {
         c.failure(`Version ${target} is already published as ${published.source}.`);
-        c.detail('npm and GitHub do not allow overwriting a release.');
+        c.detailError('npm and GitHub do not allow overwriting a release.');
         return;
       }
 

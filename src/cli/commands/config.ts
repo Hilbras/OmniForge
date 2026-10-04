@@ -23,6 +23,7 @@ import {
   validateRaw,
 } from '../../configuration/loader.js';
 import { resolveConfig, type Overrides } from '../../configuration/resolve.js';
+import { writeStarterConfig } from './init.js';
 import { resolveCredential } from '../../authentication/index.js';
 import { PROVIDER_NAMES, type ForgeConfig, type ProviderName } from '../../configuration/schema.js';
 import { ConfigError, ErrorCode, toForgeError } from '../../errors/index.js';
@@ -160,16 +161,21 @@ Examples:
     .command('init')
     .description('Write a starter forge.config.yaml')
     .option('--force', 'Overwrite an existing config')
+    .addHelpText(
+      'after',
+      `
+An alias for the top-level \`forge init\`, which is where the detection logic
+lives. Both behave identically.
+
+Examples:
+  $ forge config init
+  $ forge config init --force
+`,
+    )
     .action((flags: Record<string, boolean>) => {
-      const c = out();
-      const discovery = discoverConfig();
-      if (discovery.path !== null && flags['force'] !== true) {
-        c.warning(`${discovery.path} already exists.`);
-        c.detail('Pass --force to overwrite it.');
-        return;
-      }
-      c.info('Starter configuration is generated in Phase 1 Task 7.');
-      c.detail('For now, write forge.config.yaml by hand — see docs/configuration.md.');
+      // Shares one implementation rather than duplicating it: two `init`s would
+      // drift, and this is the name people find first.
+      writeStarterConfig(out(), flags['force'] === true);
     });
 }
 

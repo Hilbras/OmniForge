@@ -111,6 +111,15 @@ export interface Console {
   info: (text: string) => void;
   /** Indented continuation of the previous line. */
   detail: (text: string) => void;
+  /**
+   * Indented continuation of the previous *warning or failure*.
+   *
+   * `detail` goes to stdout, so using it after a `warning` splits one message
+   * across two streams: `forge config init > log` then records "pass --force to
+   * overwrite" while dropping the warning that explains what passed. Anything
+   * qualifying a failure or warning must stay on the same stream as it.
+   */
+  detailError: (text: string) => void;
   /** A named step, e.g. `npm publish`. */
   step: (name: string, status: string) => void;
   blank: () => void;
@@ -161,6 +170,7 @@ export function createConsole(options: ConsoleOptions): Console {
     warning: (text) => writeErr(`${p.gold(Symbols.warn)} ${text}\n`),
     info: (text) => write(`${text}\n`),
     detail: (text) => write(`${p.dim(`  ${text}`)}\n`),
+    detailError: (text) => writeErr(`${p.dim(`  ${text}`)}\n`),
     step: (name, status) => write(`${p.dim(Symbols.arrow)} ${name} ${p.dim(status)}\n`),
     blank: () => write('\n'),
     rule: () => write(`${p.dim('─'.repeat(48))}\n`),
