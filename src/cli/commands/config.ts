@@ -14,6 +14,7 @@
 
 import type { Command } from 'commander';
 
+import { globalSecrets } from '../../utils/secrets.js';
 import { createConsole, type Console, type Palette } from '../../ui/theme.js';
 import {
   discoverConfig,
@@ -40,7 +41,12 @@ export interface ConfigCommandDeps {
 /** Attach the `config` command group to the program. */
 export function registerConfigCommand(program: Command, deps: ConfigCommandDeps): void {
   const out = (): Console =>
-    createConsole({ write: deps.write, writeError: deps.writeError, palette: deps.palette });
+    createConsole({
+      write: deps.write,
+      writeError: deps.writeError,
+      palette: deps.palette,
+      redact: (text) => globalSecrets.redact(text),
+    });
 
   const config = program
     .command('config')

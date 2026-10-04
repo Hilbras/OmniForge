@@ -11,10 +11,9 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.6.0 — release orchestration.** `forge release` runs the whole
-> workflow: validate → check → version → tag → publish → verify → report. GitHub
-> and npm are both implemented; PyPI is pending credentials. See
-> [Roadmap](#roadmap).
+> **Status: v0.7.0 — security hardening.** `forge release` runs the whole workflow,
+> and credential redaction is enforced at every output sink. GitHub and npm are
+> implemented; PyPI is pending credentials. See [Roadmap](#roadmap).
 
 ---
 
@@ -319,12 +318,33 @@ macOS, and verifies the published tarball excludes tests and sources.
 ## Security
 
 Credentials are read from the environment (`GITHUB_TOKEN`, `NPM_TOKEN`,
-`PYPI_TOKEN`) and are never stored in `forge.config.yaml`. A redaction layer is
-already in place: `createRedactor()` scrubs known secret values from any text
-before it reaches a log, report, or error message, and `maskSecret()` renders
-them as `ghp_************`.
+`PYPI_TOKEN`) and are never stored in `forge.config.yaml`. Storing one in config
+is rejected outright and reported masked.
 
-Full security hardening lands in Phase 11.
+**Redaction happens at the sink, not at each call site.** Every string the CLI
+emits passes through a redactor before it reaches stdout, stderr, or a report
+file. That matters because provider stderr routinely echoes back the token that
+was passed on a command line — `npm ERR! Authorization: Bearer npm_…` — and that
+text ends up inside a `ForgeError` detail and then inside a report on disk.
+Redacting once at the sink is correct for every caller, including ones written
+later.
+
+Also in place:
+
+- Commands run as argument arrays with `shell: false`. A metacharacter in an
+  argument is data, never syntax.
+- Credentials travel through the child process environment, never as a CLI
+  argument — an argument is visible in the process list.
+- `src/build/validate.ts` flags a suspicious command: a shell interpreter, a
+  working directory outside the project, an overridden `PATH`/`LD_PRELOAD`, or a
+  credential passed as an argument.
+- `.forge/audit.log` records operation, provider, timestamp, result, and error
+  code. Deliberately no free text, so it cannot carry a secret.
+- Duplicate tag, release, and version protection; destructive operations confirm
+  first and refuse without `--yes` in a non-interactive shell.
+
+75 security tests plant a canary credential in every sink — stdout, stderr, error
+details, stack traces, and written reports — and assert it appears in none.
 
 Report a vulnerability via GitHub Security Advisories — not a public issue.
 

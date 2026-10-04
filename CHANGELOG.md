@@ -9,6 +9,50 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.7.0] — 2026-10-01
+
+Phase 11 — security hardening.
+
+### Added
+
+- **Secret registry** (`src/utils/secrets.ts`). Credentials are registered once,
+  when resolved, and every output sink redacts against them. The inversion is the
+  point: auditing each call site for leaks does not scale, whereas a redacting
+  sink is correct by construction for every caller, including ones written later.
+- **Redaction at the sink.** Every string the CLI emits — stdout, stderr, error
+  details, stack traces, and written reports — passes through the redactor. This
+  closes a real path: provider stderr routinely echoes back the token passed on a
+  command line (`npm ERR! Authorization: Bearer npm_…`), which lands in a
+  `ForgeError` detail and then in a report file on disk.
+- **`redactDeep`** blanks any key whose _name_ looks like a credential even when
+  its value was never resolved — the case value-substitution cannot catch.
+- **Command validation** (`src/build/validate.ts`) flags a suspicious command: a
+  shell interpreter, a working directory outside the project, an overridden
+  `PATH`/`LD_PRELOAD`/`NODE_OPTIONS`, or a credential passed as an argument.
+- **Audit log** (`.forge/audit.log`, JSON Lines): operation, provider, timestamp,
+  result, error code, duration. Deliberately no free text, so it cannot carry a
+  secret. Best-effort — an audit failure never fails the release.
+- **75 security tests** planting a canary credential in every sink and asserting
+  it appears in none, including end-to-end CLI subprocess runs and a report
+  written to disk.
+
+### Fixed
+
+- **Credential flags were only detected at the start of an argument**, so a token
+  inside an inline `sh -c "..."` script went unflagged — the more likely accident.
+- **Deep redaction skipped objects whose keys were secret-shaped** when the
+  registry held no known secret, which is exactly when an unknown token in a
+  `{ token: … }` field would survive.
+- **Reports were redacted only when a caller passed secrets explicitly.** The
+  writer now defaults to the global registry, because a report is written to disk
+  and a caller that forgets is not a caller anyone should have to trust.
+
+### Notes
+
+- The masked-prefix form (`ghp_***`) is used only for _display_; emitted output
+  uses `[REDACTED]`, since a prefix still confirms a credential's shape.
+- 587 tests passing, up from 512.
+
 ## [0.6.0] — 2026-10-01
 
 Phases 8 and 10 — release orchestration and reporting. `forge release` now runs
@@ -311,6 +355,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.7.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.3.0...v0.4.0

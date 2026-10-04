@@ -22,6 +22,7 @@ import {
   shouldUseColor,
   type Console as TerminalConsole,
 } from '../ui/theme.js';
+import { globalSecrets } from '../utils/secrets.js';
 import { registerConfigCommand } from './commands/config.js';
 import { registerGitHubCommand } from './commands/github.js';
 import { registerNpmCommand } from './commands/npm.js';
@@ -55,10 +56,15 @@ export function buildConsole(
   env: NodeJS.ProcessEnv = process.env,
   stdout: { isTTY?: boolean } = process.stdout,
 ): TerminalConsole {
+  // Credentials are registered up front so every sink redacts them, whether they
+  // arrive from the environment or from a provider's error output later.
+  globalSecrets.addFromEnv(env);
+
   return createConsole({
     write: (text: string) => process.stdout.write(text),
     writeError: (text: string) => process.stderr.write(text),
     palette: createPalette(shouldUseColor(env, stdout.isTTY === true)),
+    redact: (text) => globalSecrets.redact(text),
   });
 }
 
@@ -123,45 +129,27 @@ export function buildProgram(term: TerminalConsole = buildConsole()): Command {
       writeErr: (str: string) => process.stderr.write(str),
     });
 
+  // Every command gets the same writers, palette, and redactor, so no command can
+  // accidentally opt out of redaction by building its own console.
+  const sink = {
+    // Braces rather than an arrow expression: `process.stdout.write` returns a
+    // boolean, which does not satisfy the `void` return the writers declare.
+    write: (text: string): void => {
+      process.stdout.write(text);
+    },
+    writeError: (text: string): void => {
+      process.stderr.write(text);
+    },
+    palette: term.palette,
+  };
+
   registerProviderCommands(program, term);
-  registerConfigCommand(program, {
-    write: (text) => process.stdout.write(text),
-    writeError: (text) => process.stderr.write(text),
-    env: process.env,
-    palette: term.palette,
-  });
-  registerGitHubCommand(program, {
-    write: (text) => process.stdout.write(text),
-    writeError: (text) => process.stderr.write(text),
-    env: process.env,
-    palette: term.palette,
-    confirm: askYesNo,
-  });
-  registerNpmCommand(program, {
-    write: (text) => process.stdout.write(text),
-    writeError: (text) => process.stderr.write(text),
-    env: process.env,
-    palette: term.palette,
-    confirm: askYesNo,
-  });
-  registerReleaseCommand(program, {
-    write: (text) => process.stdout.write(text),
-    writeError: (text) => process.stderr.write(text),
-    env: process.env,
-    palette: term.palette,
-    confirm: askYesNo,
-  });
-  registerVersionCommand(program, {
-    write: (text) => process.stdout.write(text),
-    writeError: (text) => process.stderr.write(text),
-    palette: term.palette,
-    confirm: askYesNo,
-  });
-  registerCheckCommand(program, {
-    write: (text) => process.stdout.write(text),
-    writeError: (text) => process.stderr.write(text),
-    palette: term.palette,
-  });
+  registerConfigCommand(program, { ...sink, env: process.env });
+  registerGitHubCommand(program, { ...sink, env: process.env, confirm: askYesNo });
+  registerNpmCommand(program, { ...sink, env: process.env, confirm: askYesNo });
+  registerReleaseCommand(program, { ...sink, env: process.env, confirm: askYesNo });
+  registerVersionCommand(program, { ...sink, confirm: askYesNo });
+  registerCheckCommand(program, { ...sink });
 
   return program;
 }

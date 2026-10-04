@@ -122,6 +122,15 @@ export interface ConsoleOptions {
   readonly write: Writer;
   readonly writeError?: Writer;
   readonly palette?: Palette;
+  /**
+   * Applied to every string the console emits.
+   *
+   * Redaction lives here rather than at each call site because a sink that
+   * redacts is correct for every caller, including ones written later. Provider
+   * stderr captured into a `ForgeError` routinely contains the token that was
+   * passed on a command line, and that text reaches reports on disk.
+   */
+  readonly redact?: (text: string) => string;
 }
 
 /**
@@ -133,21 +142,27 @@ export interface ConsoleOptions {
  */
 export function createConsole(options: ConsoleOptions): Console {
   const p = options.palette ?? createPalette(false);
-  const err = options.writeError ?? options.write;
+  const rawError = options.writeError ?? options.write;
+
+  // Every write path funnels through these two functions, so redaction cannot be
+  // forgotten by a future caller.
+  const redact = options.redact ?? ((text: string) => text);
+  const write = (text: string): void => options.write(redact(text));
+  const writeErr = (text: string): void => rawError(redact(text));
 
   return {
     palette: p,
-    line: (text = '') => options.write(`${text}\n`),
-    writePlain: (text) => options.write(text),
-    writeErrorPlain: (text) => err(text),
-    heading: (text) => options.write(`\n${p.gold(text)}\n`),
-    success: (text) => options.write(`${p.green(Symbols.pass)} ${text}\n`),
-    failure: (text) => err(`${p.red(Symbols.fail)} ${text}\n`),
-    warning: (text) => err(`${p.gold(Symbols.warn)} ${text}\n`),
-    info: (text) => options.write(`${text}\n`),
-    detail: (text) => options.write(`${p.dim(`  ${text}`)}\n`),
-    step: (name, status) => options.write(`${p.dim(Symbols.arrow)} ${name} ${p.dim(status)}\n`),
-    blank: () => options.write('\n'),
-    rule: () => options.write(`${p.dim('\u2500'.repeat(48))}\n`),
+    line: (text = '') => write(`${text}\n`),
+    writePlain: (text) => write(text),
+    writeErrorPlain: (text) => writeErr(text),
+    heading: (text) => write(`\n${p.gold(text)}\n`),
+    success: (text) => write(`${p.green(Symbols.pass)} ${text}\n`),
+    failure: (text) => writeErr(`${p.red(Symbols.fail)} ${text}\n`),
+    warning: (text) => writeErr(`${p.gold(Symbols.warn)} ${text}\n`),
+    info: (text) => write(`${text}\n`),
+    detail: (text) => write(`${p.dim(`  ${text}`)}\n`),
+    step: (name, status) => write(`${p.dim(Symbols.arrow)} ${name} ${p.dim(status)}\n`),
+    blank: () => write('\n'),
+    rule: () => write(`${p.dim('─'.repeat(48))}\n`),
   };
 }

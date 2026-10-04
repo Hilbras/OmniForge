@@ -7,6 +7,7 @@
 
 import type { Command } from 'commander';
 
+import { globalSecrets } from '../../utils/secrets.js';
 import { createConsole, type Console as TerminalConsole, type Palette } from '../../ui/theme.js';
 import { resolveConfig } from '../../configuration/resolve.js';
 import { toForgeError } from '../../errors/index.js';
@@ -31,7 +32,12 @@ export interface VersionCommandDeps {
 /** Attach the `version` command group. */
 export function registerVersionCommand(program: Command, deps: VersionCommandDeps): void {
   const out = (): TerminalConsole =>
-    createConsole({ write: deps.write, writeError: deps.writeError, palette: deps.palette });
+    createConsole({
+      write: deps.write,
+      writeError: deps.writeError,
+      palette: deps.palette,
+      redact: (text) => globalSecrets.redact(text),
+    });
 
   const version = program
     .command('version')

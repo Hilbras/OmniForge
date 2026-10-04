@@ -7,6 +7,7 @@
 
 import type { Command } from 'commander';
 
+import { globalSecrets } from '../../utils/secrets.js';
 import { createConsole, type Console as TerminalConsole, type Palette } from '../../ui/theme.js';
 import { resolveConfig } from '../../configuration/resolve.js';
 import { resolveCredential } from '../../authentication/index.js';
@@ -30,7 +31,12 @@ export interface NpmCommandDeps {
 /** Attach the `npm` command group. */
 export function registerNpmCommand(program: Command, deps: NpmCommandDeps): void {
   const out = (): TerminalConsole =>
-    createConsole({ write: deps.write, writeError: deps.writeError, palette: deps.palette });
+    createConsole({
+      write: deps.write,
+      writeError: deps.writeError,
+      palette: deps.palette,
+      redact: (text) => globalSecrets.redact(text),
+    });
 
   const cmd = program
     .command('npm')

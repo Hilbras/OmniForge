@@ -8,6 +8,7 @@
 
 import type { Command } from 'commander';
 
+import { globalSecrets } from '../../utils/secrets.js';
 import {
   createConsole,
   Symbols,
@@ -30,7 +31,12 @@ export interface CheckCommandDeps {
 /** Attach the `check` command group. */
 export function registerCheckCommand(program: Command, deps: CheckCommandDeps): void {
   const out = (): TerminalConsole =>
-    createConsole({ write: deps.write, writeError: deps.writeError, palette: deps.palette });
+    createConsole({
+      write: deps.write,
+      writeError: deps.writeError,
+      palette: deps.palette,
+      redact: (text) => globalSecrets.redact(text),
+    });
 
   program
     .command('check')

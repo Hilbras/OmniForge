@@ -8,6 +8,7 @@
 
 import type { Command } from 'commander';
 
+import { globalSecrets } from '../../utils/secrets.js';
 import { createConsole, type Console as TerminalConsole, type Palette } from '../../ui/theme.js';
 import { ConfigError, ErrorCode, toForgeError } from '../../errors/index.js';
 import { resolveConfig } from '../../configuration/resolve.js';
@@ -31,7 +32,12 @@ export interface GitHubCommandDeps {
 /** Attach the `github` command group. */
 export function registerGitHubCommand(program: Command, deps: GitHubCommandDeps): void {
   const out = (): TerminalConsole =>
-    createConsole({ write: deps.write, writeError: deps.writeError, palette: deps.palette });
+    createConsole({
+      write: deps.write,
+      writeError: deps.writeError,
+      palette: deps.palette,
+      redact: (text) => globalSecrets.redact(text),
+    });
 
   const gh = program
     .command('github')

@@ -7,6 +7,7 @@
 
 import type { Command } from 'commander';
 
+import { globalSecrets } from '../../utils/secrets.js';
 import {
   createConsole,
   Symbols,
@@ -38,7 +39,12 @@ export interface ReleaseCommandDeps {
 /** Attach the `release` command. */
 export function registerReleaseCommand(program: Command, deps: ReleaseCommandDeps): void {
   const out = (): TerminalConsole =>
-    createConsole({ write: deps.write, writeError: deps.writeError, palette: deps.palette });
+    createConsole({
+      write: deps.write,
+      writeError: deps.writeError,
+      palette: deps.palette,
+      redact: (text) => globalSecrets.redact(text),
+    });
 
   program
     .command('release')

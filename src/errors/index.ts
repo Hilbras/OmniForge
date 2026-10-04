@@ -110,6 +110,11 @@ export class ForgeError extends Error {
    *
    * Answers the four questions the CLI contract requires: what failed, why,
    * what it affected, and what to do next.
+   *
+   * Note that this method does not redact. The console does, on the way out —
+   * redacting here as well would double-process every string, and an error
+   * formatted outside the CLI (a library consumer) would have no registry to
+   * consult anyway.
    */
   format(): string {
     const lines = [`✗ ${this.message}`];

@@ -7,22 +7,31 @@
  * reached an error message cannot reach a report.
  */
 
-import { createRedactor } from '../utils/index.js';
+import { globalSecrets, SecretRegistry } from '../utils/secrets.js';
 import type { ReleaseResult, StepResult } from './pipeline.js';
 
 export type ReportFormat = 'terminal' | 'json' | 'markdown';
 
-/** Render a result in the requested format. */
+/**
+ * Render a result in the requested format.
+ *
+ * Redaction is not optional. A caller that forgets to pass secrets still gets a
+ * redacted report, because the global registry holds every credential resolved
+ * during the run — and a report is written to disk, where a leaked token would
+ * outlive the command that produced it.
+ */
 export function render(
   result: ReleaseResult,
   format: ReportFormat,
-  secrets: readonly string[] = [],
+  secrets?: readonly string[],
 ): string {
-  const redact = createRedactor(secrets);
-  const safe: ReleaseResult = {
-    ...result,
-    steps: result.steps.map((step) => ({ ...step, detail: redact(step.detail) })),
-  };
+  const registry = secrets === undefined ? globalSecrets : new SecretRegistry();
+  if (secrets !== undefined) for (const secret of secrets) registry.add(secret);
+
+  // Redacted deeply: a token can sit in a step detail, an error message, or a
+  // nested detail object, and `redactDeep` also blanks any key whose *name*
+  // looks like a credential even when its value is unknown.
+  const safe = registry.redactDeep(result);
 
   switch (format) {
     case 'json':
