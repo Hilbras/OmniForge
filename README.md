@@ -11,10 +11,16 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.9.1 — CLI UX.** `forge init` generates a working config from your
-> project, every command documents itself with examples, and a failure always
-> keeps its explanation on the same stream as the failure. GitHub and npm are
-> implemented; PyPI is pending credentials. See [Roadmap](#roadmap).
+> **Status: v1.0.0.** Every phase of the plan is implemented. `forge release`
+> runs the whole workflow — validate, check, version, tag, publish, verify, report —
+> across GitHub, npm, and PyPI, and refuses to report success when the providers
+> disagree. 841 tests.
+>
+> One caveat, stated plainly: **no real PyPI upload has been performed.** The
+> provider is implemented and unit-tested, and a real sdist and wheel were built
+> and passed `twine check`, but the credentials could not be confirmed from an
+> environment whose proxy intercepts `upload.pypi.org`. Use a throwaway project
+> name for your first PyPI publish. See [Project status](#project-status).
 
 ---
 
@@ -28,9 +34,9 @@ registry means adding a directory — not editing the release engine.
 Forge Core
     │
     └── Provider System
-          ├── GitHub    (Phase 3)
-          ├── npm       (Phase 6)
-          └── PyPI      (Phase 7)
+          ├── GitHub
+          ├── npm
+          └── PyPI
 ```
 
 This is enforced by an executable architecture test, not a convention: a test
@@ -40,7 +46,7 @@ fails the build if Core imports a provider or branches on a platform name.
 
 ## Install
 
-Requires Node.js >= 22.12.12. The minor matters: `commander` needs `>=22.12.0` and
+Requires Node.js >= 22.12. The minor matters: `commander` needs `>=22.12.0` and
 vitest needs `^22.12.0`. CI tests 22.12, 24, and 26 on all three platforms.
 
 ```bash
@@ -308,43 +314,76 @@ Full reference: [`docs/configuration.md`](docs/configuration.md).
 
 ## Project status
 
-| Phase | Scope                                      | State                         |
-| ----- | ------------------------------------------ | ----------------------------- |
-| 0     | Foundation, CLI, provider contract         | Done                          |
-| 1     | `forge.config.yaml` loading and validation | Done                          |
-| 2     | Provider registry and lifecycle            | Contract done, wiring planned |
-| 3     | GitHub provider                            | Done                          |
-| 4     | Version management                         | Done                          |
-| 5     | Check and build engine                     | Done                          |
-| 6     | npm provider                               | Planned                       |
-| 7     | PyPI provider                              | Planned                       |
-| 8     | Release orchestration                      | Planned                       |
-| 9     | Verification and integrity                 | Planned                       |
-| 10    | Release reporting                          | Planned                       |
-| 11    | Security hardening                         | Partially in place            |
-| 12    | Testing and reliability                    | In progress                   |
-| 13    | CLI and developer experience               | In progress                   |
-| 14    | Documentation                              | In progress                   |
-| 15–16 | RC and v1.0.0                              | Planned                       |
+| Phase | Scope                                      | State                                      |
+| ----- | ------------------------------------------ | ------------------------------------------ |
+| 0     | Foundation, CLI, provider contract         | Done — v0.1.0                              |
+| 1     | `forge.config.yaml` loading and validation | Done — v0.2.0                              |
+| 2     | Provider registry and lifecycle            | Done — v0.3.0                              |
+| 3     | GitHub provider                            | Done — v0.4.0                              |
+| 4     | Version management                         | Done — v0.5.0                              |
+| 5     | Check and build engine                     | Done — v0.6.0                              |
+| 6     | npm provider                               | Done — v0.7.0                              |
+| 7     | PyPI provider                              | Implemented, one path unverified — v0.10.0 |
+| 8     | Release orchestration                      | Done — v0.8.0                              |
+| 9     | Verification and integrity                 | Done — v0.9.0                              |
+| 10    | Release reporting                          | Done — v0.9.0                              |
+| 11    | Security hardening                         | Done — v0.9.0                              |
+| 12    | Testing and reliability                    | Done — v0.9.0, 841 tests                   |
+| 13    | CLI and developer experience               | Done — v0.9.1                              |
+| 14    | Documentation                              | Done — v0.9.2                              |
+| 15    | Release candidate                          | Done — v1.0.0-rc.1, rc.2                   |
+| 16    | Stable v1.0.0                              | **This release**                           |
 
-Full breakdown: [`tasks/plan.md`](tasks/plan.md) · Progress: [`tasks/todo.md`](tasks/todo.md)
+### What is verified
+
+| Check                          | Result                                               |
+| ------------------------------ | ---------------------------------------------------- |
+| Tests                          | 841 passing, coverage thresholds enforced            |
+| Lint, format, typecheck, build | clean                                                |
+| `npm audit`                    | 0 vulnerabilities                                    |
+| CI matrix                      | Node 22.12, 24, 26 × Linux, macOS, Windows           |
+| GitHub provider                | live: repository, tags, releases, verification       |
+| npm provider                   | live: publish, dist-tags, registry verification      |
+| PyPI provider                  | verification live; build live; **upload unverified** |
+| `forge release --dry-run`      | exit 0, every provider rehearsed, tree unchanged     |
+
+### What is not
+
+**A real PyPI upload.** Everything up to it is tested — a real sdist and wheel were
+built from a real `pyproject.toml`, `twine check` passed both, and live
+verification against PyPI reports a real release correctly. The upload itself has
+never run, because the credentials in `~/.pypirc` cannot be confirmed from an
+environment whose proxy answers `upload.pypi.org` identically to valid and invalid
+credentials.
+
+For your own first PyPI publish: use a throwaway project name. PyPI names are
+permanent, and it is better to burn one deliberately.
 
 ---
 
 ## Roadmap
 
+Released, in order:
+
 ```text
-v0.1.0  Foundation
-v0.2.0  Configuration + provider system
-v0.3.0  GitHub provider, versioning, checks
-v0.4.0  npm + PyPI providers
-v0.5.0  Orchestration, verification, reporting
-v0.6.0  Security, testing, CLI, docs
-v1.0.0-rc.1 → v1.0.0
+v0.1.0 – v0.2.0   Foundation, configuration, provider system
+v0.3.0 – v0.6.0   GitHub, versioning, checks, npm
+v0.7.0 – v0.9.0   Orchestration, verification, reporting, security
+v0.9.1 – v0.9.6   CLI UX, testing, documentation
+v0.10.0           PyPI provider
+v1.0.0-rc.1/2     Release candidates
+v1.0.0            Stable
 ```
 
-Beyond v1: Docker Hub, GitLab, Bitbucket, crates.io, NuGet, Maven Central,
-RubyGems, Homebrew, and custom registries.
+Next, in rough priority order:
+
+- **Verify a real PyPI upload** with a throwaway project name.
+- **Docker Hub** — the first provider outside the JS/Python pair, and the real
+  test of whether the provider contract generalises. See
+  [Writing a provider](docs/provider-development.md).
+- **GitLab and Bitbucket**, which need only a different API client.
+- **Homebrew** and a private registry, both mostly `twine`-shaped.
+- **crates.io, NuGet, Maven Central, RubyGems** — same shape again.
 
 ---
 

@@ -5,7 +5,72 @@ All notable changes to this project are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] — 2026-10-04
+
+The stable release. Every phase of the plan is implemented, and this entry
+records what is verified as carefully as what is not.
+
+### What v1.0.0 is
+
+```text
+Project → Config → Validation → Version → Checks → Build
+        → Git tag → GitHub Release → npm → PyPI → Verify → Report
+```
+
+One command does all of it:
+
+```bash
+forge release --patch
+```
+
+The Core contains no platform-specific logic. GitHub, npm, and PyPI are providers
+behind one interface, enforced by an architecture test that fails the build if
+Core imports a provider or branches on a platform name.
+
+### Verified
+
+| Check                          | Result                                                        |
+| ------------------------------ | ------------------------------------------------------------- |
+| Tests                          | 841 passing across 30 files                                   |
+| Coverage                       | per-directory thresholds, enforced by `npm test`              |
+| Lint, format, typecheck, build | clean                                                         |
+| `npm audit`                    | 0 vulnerabilities                                             |
+| CI matrix                      | Node 22.12, 24, 26 × Linux, macOS, Windows                    |
+| GitHub provider                | live: repository, tags, releases, verification                |
+| npm provider                   | live: publish, dist-tags, registry verification               |
+| PyPI provider                  | verification live, build live, **upload unverified**          |
+| `forge release --dry-run`      | exit 0, every provider rehearsed, working tree byte-identical |
+
+### Not verified
+
+**A real PyPI upload has never run.** The provider is implemented and unit-tested;
+a real sdist and wheel were built from a real `pyproject.toml` and passed
+`twine check`; live verification against PyPI reports a real release correctly.
+The upload itself could not be exercised, because the credentials in `~/.pypirc`
+cannot be confirmed from an environment whose proxy answers `upload.pypi.org`
+identically to valid and invalid credentials.
+
+This is stated rather than glossed. Use a throwaway project name for the first real
+PyPI publish — PyPI names are permanent, and burning one deliberately is better
+than discovering a problem afterwards.
+
+### Release history
+
+| Version           | Phase                                            |
+| ----------------- | ------------------------------------------------ |
+| v0.1.0 – v0.2.0   | Foundation, configuration, provider system       |
+| v0.3.0 – v0.6.0   | GitHub, versioning, checks, npm                  |
+| v0.7.0 – v0.9.0   | Orchestration, verification, reporting, security |
+| v0.9.1 – v0.9.6   | CLI UX, testing, documentation                   |
+| v0.10.0           | PyPI provider                                    |
+| v1.0.0-rc.1, rc.2 | Release candidates                               |
+| **v1.0.0**        | Stable                                           |
+
+### Next
+
+Docker Hub is the first provider outside the JS/Python pair, and the real test of
+whether the contract generalises. GitLab and Bitbucket need only a different API
+client. See [docs/roadmap in the README](README.md#roadmap).
 
 Nothing yet.
 
@@ -742,6 +807,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[1.0.0]: https://github.com/Hilbras/hilbras-forge/compare/v1.0.0-rc.2...v1.0.0
 [1.0.0-rc.2]: https://github.com/Hilbras/hilbras-forge/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.10.0...v1.0.0-rc.1
 [0.10.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.2...v0.10.0

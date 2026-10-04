@@ -1,6 +1,6 @@
 {
   "name": "@hilbras/forge",
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0",
   "description": "Unified release, publishing, versioning, and package management platform",
   "keywords": [
     "release",
