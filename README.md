@@ -8,7 +8,7 @@
   <a href="https://github.com/Hilbras/hilbras-forge/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square&labelColor=gray" alt="MIT licensed"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D22.12-5FA04E?style=flat-square&labelColor=gray" alt="Node 22.12+"></a>
   <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/typescript-strict-3178C6?style=flat-square&labelColor=gray" alt="TypeScript strict"></a>
-  <img src="https://img.shields.io/badge/tests-844-8A2BE2?style=flat-square&labelColor=gray" alt="844 tests">
+  <img src="https://img.shields.io/badge/tests-854-8A2BE2?style=flat-square&labelColor=gray" alt="854 tests">
   <a href="https://github.com/Hilbras/hilbras-forge/graphs/contributors"><img src="https://img.shields.io/github/contributors/Hilbras/hilbras-forge?style=flat-square&labelColor=gray" alt="Contributors"></a>
 </p>
 
@@ -26,7 +26,7 @@ Project → Config → Validation → Version → Checks → Build
 > **Status: v1.0.0.** Every phase of the plan is implemented. `forge release`
 > runs the whole workflow — validate, check, version, tag, publish, verify, report —
 > across GitHub, npm, and PyPI, and refuses to report success when the providers
-> disagree. 844 tests.
+> disagree. 854 tests.
 >
 > One caveat, stated plainly: **no real PyPI upload has been performed.** The
 > provider is implemented and unit-tested, and a real sdist and wheel were built
@@ -402,7 +402,7 @@ Full reference: [`docs/configuration.md`](docs/configuration.md).
 | 9     | Verification and integrity                 | Done — v0.9.0                              |
 | 10    | Release reporting                          | Done — v0.9.0                              |
 | 11    | Security hardening                         | Done — v0.9.0                              |
-| 12    | Testing and reliability                    | Done — v0.9.0, 844 tests                   |
+| 12    | Testing and reliability                    | Done — v0.9.0, 854 tests                   |
 | 13    | CLI and developer experience               | Done — v0.9.1                              |
 | 14    | Documentation                              | Done — v0.9.2                              |
 | 15    | Release candidate                          | Done — v1.0.0-rc.1, rc.2                   |
@@ -412,7 +412,7 @@ Full reference: [`docs/configuration.md`](docs/configuration.md).
 
 | Check                          | Result                                               |
 | ------------------------------ | ---------------------------------------------------- |
-| Tests                          | 844 passing, coverage thresholds enforced            |
+| Tests                          | 854 passing, coverage thresholds enforced            |
 | Lint, format, typecheck, build | clean                                                |
 | `npm audit`                    | 0 vulnerabilities                                    |
 | CI matrix                      | Node 22.12, 24, 26 × Linux, macOS, Windows           |

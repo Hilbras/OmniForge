@@ -25,8 +25,8 @@ const pypiFactory: ProviderFactory = () => new PyPiProvider();
 /**
  * Build the registry Forge ships with.
  *
- * PyPI (Phase 7) registers here next. Until then `provider list` shows `github`
- * and `npm`, which is honest about what exists.
+ * Every provider Forge ships is registered here, and this is the only file
+ * permitted to import a concrete provider — which the architecture test enforces.
  */
 export function createDefaultRegistry(): ProviderRegistry {
   return new ProviderRegistry()

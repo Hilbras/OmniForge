@@ -27,6 +27,31 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     registry. `FORGE_REQUIRE_GITHUB_AUTH=0` forces the skip path so it is tested
     rather than trusted.
 
+### Fixed
+
+- **Three more POSIX assumptions, found by watching CI rather than by reading
+  logs.** After the CRLF and credential faults, Windows still failed:
+
+  - `exec.test.ts` spawned the bare string `node`, which is on PATH for the job
+    but not for a child spawn on a GitHub Windows runner. Nineteen call sites now
+    use `process.execPath`.
+  - `architecture.test.ts` compared `path.relative()` output against allowlists
+    written with forward slashes; Windows returns backslashes, so nothing matched
+    and every file looked like an offender. **This one mattered most: that test
+    is what enforces "Core contains no platform-specific logic", and on Windows it
+    was failing on every file instead of checking any of them.** The guarantee was
+    never actually being verified on that platform.
+  - `init.test.ts` derived a directory name with `split('/')`, which returns the
+    wrong component on Windows where the separator is a backslash and the temp
+    path arrives short-formed.
+
+- **`src/core` function coverage was 76.47% against an 80% threshold**, so the
+  coverage gate failed even though every test passed. The gap was the three
+  provider factories in `default-registry.ts`, which nothing invoked — meaning a
+  provider could have been registered but broken at runtime. Added a test that
+  resolves each one and checks every contract method exists; coverage is now
+  100%. The threshold was not lowered.
+
 ### Added
 
 - **Repository topics** — 15 of them, so the project is discoverable through
@@ -66,7 +91,7 @@ Core imports a provider or branches on a platform name.
 
 | Check                          | Result                                                        |
 | ------------------------------ | ------------------------------------------------------------- |
-| Tests                          | 844 passing across 30 files                                   |
+| Tests                          | 854 passing across 30 files                                   |
 | Coverage                       | per-directory thresholds, enforced by `npm test`              |
 | Lint, format, typecheck, build | clean                                                         |
 | `npm audit`                    | 0 vulnerabilities                                             |
@@ -134,7 +159,7 @@ rc.1, which is the kind of thing only a real user hits.
 
 ### Notes
 
-- 844 tests passing, up from 833. Lint, format, typecheck, build, and the generated
+- 854 tests passing, up from 833. Lint, format, typecheck, build, and the generated
   CLI reference all clean; 0 vulnerabilities.
 
 - Still unverified: a real PyPI upload. Unchanged from rc.1. See that release's
