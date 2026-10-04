@@ -85,6 +85,11 @@ Examples:
           current = name;
           if (!quiet) c.step(`${name}`, p.dim(command.join(' ')));
         },
+        // Surfaced rather than enforced: `sh -c` is a legitimate choice, so the
+        // check still runs. Making the decision visible is the point.
+        onWarning: (name, warning) => {
+          if (!quiet) c.warning(`${name}: ${warning.message}`);
+        },
         onOutput: (chunk, stream) => {
           // Streamed live so a slow suite shows progress.
           if (!quiet) {

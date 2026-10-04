@@ -9,6 +9,53 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.9.2] — 2026-10-04
+
+Phase 14 — documentation.
+
+Every command in these docs was run against the real CLI and its output copied,
+rather than written from memory. That is not ceremony: the first draft of
+getting-started showed `checks: { test: npm test }`, a shell string the validator
+rejects, and claimed `forge check` output that does not exist. Two flags in
+providers.md did not exist either. Running the commands is the only way to know.
+
+### Added
+
+- **7 documents** covering §20's list: getting-started, cli (generated),
+  providers, provider-development, architecture, troubleshooting, and an index.
+  Previously there were two, and 6 of the 18 required topics had nothing.
+- **`docs/cli.md`, generated from the built binary** across all 32 commands.
+  Hand-copied help drifts silently: a flag appears, nobody updates the prose, and
+  the docs become wrong in a way nothing catches. CI now fails when it is stale.
+- **`forge check` surfaces suspicious commands.** `src/build/validate.ts` existed
+  and was tested but never called by the pipeline — a security helper nothing
+  invoked. A shell interpreter, a credential passed as an argument, or a loader
+  override is now reported before the check runs. Advisory, because `sh -c` is a
+  legitimate choice; the point is that the decision is visible.
+
+### Fixed
+
+- **`forge init` generated checks the project could not run.** It wrote
+  `test: true` whenever a package.json existed, but that shorthand expands to
+  `npm test` — so a project with no test script got "Missing script: test" on its
+  first `forge check`, which reads as a broken install rather than a check that
+  does not apply. Only scripts that exist are now enabled.
+- **`docs:check` could never fail.** It regenerated the file and then ran
+  `git diff`, which was always empty because the script had already restored the
+  file. Now it compares and exits 1 when stale. Verified against three cases: a
+  tampered file fails, a current file passes, and a genuinely new flag is
+  detected.
+- **`scripts/` was outside the typecheck**, so a build script could not fail
+  `npm run typecheck`. It is now part of the project, with `no-console` allowed
+  for scripts specifically rather than the rule being weakened everywhere.
+
+### Notes
+
+- The provider-development guide's example provider was compiled against the real
+  contracts before being committed. Documentation of an interface that has drifted
+  is worse than none.
+- 753 tests passing, up from 741.
+
 ## [0.9.1] — 2026-10-04
 
 Phase 13 — CLI UX and developer experience.
@@ -546,6 +593,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.9.2]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.8.0...v0.8.1

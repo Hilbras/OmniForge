@@ -1,6 +1,6 @@
 {
   "name": "@hilbras/forge",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Unified release, publishing, versioning, and package management platform",
   "keywords": [
     "release",
@@ -60,7 +60,9 @@
     "test:coverage": "vitest run --coverage",
     "dev": "tsx src/cli/index.ts",
     "prepare": "npm run build",
-    "pretest": "npm run build"
+    "pretest": "npm run build",
+    "docs:cli": "tsx scripts/generate-cli-docs.ts",
+    "docs:check": "tsx scripts/generate-cli-docs.ts --check"
   },
   "dependencies": {
     "commander": "^15.0.0",

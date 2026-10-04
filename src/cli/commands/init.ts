@@ -41,6 +41,14 @@ interface Ecosystem {
   readonly versionFile: string;
   /** Extract name and version from the marker file. */
   readonly read: (contents: string) => { name: string | null; version: string | null };
+  /**
+   * Which of `test`/`lint`/`build` this project can actually run.
+   *
+   * Returns null when the ecosystem does not name its scripts the way npm does —
+   * a Python project's tooling is pytest or whatever it uses, and guessing npm
+   * script names for it would enable checks that cannot run.
+   */
+  readonly scripts: ((contents: string) => ReadonlySet<string>) | null;
   /** Normalise a package name for this ecosystem's registry. */
   readonly normalize: (name: string) => string;
 }
@@ -59,6 +67,19 @@ const readPackageJson = (contents: string): { name: string | null; version: stri
   } catch {
     // A malformed manifest must not stop someone generating a config.
     return NO_METADATA;
+  }
+};
+
+/** The npm scripts a package.json declares. */
+const npmScripts = (contents: string): ReadonlySet<string> => {
+  try {
+    const parsed: unknown = JSON.parse(contents);
+    if (typeof parsed !== 'object' || parsed === null) return new Set();
+    const scripts = (parsed as { scripts?: unknown }).scripts;
+    if (typeof scripts !== 'object' || scripts === null) return new Set();
+    return new Set(Object.keys(scripts));
+  } catch {
+    return new Set();
   }
 };
 
@@ -87,6 +108,11 @@ const ECOSYSTEMS: readonly Ecosystem[] = [
     provider: 'npm',
     versionFile: 'package.json',
     read: readPackageJson,
+    // Which npm scripts exist, so a generated `checks:` section does not enable a
+    // test that is not there. `checks: { test: true }` expands to `npm test`, and
+    // a project with no test script then fails its first `forge check` with
+    // "Missing script: test" — a confusing way to learn your config is guesswork.
+    scripts: (contents) => npmScripts(contents),
     normalize: (name) => name,
   },
   {
@@ -95,6 +121,7 @@ const ECOSYSTEMS: readonly Ecosystem[] = [
     provider: 'pypi',
     versionFile: 'pyproject.toml',
     read: readPyProject,
+    scripts: null,
     // PEP 503: PyPI treats Foo.Bar and foo-bar as the same name.
     normalize: (name) => name.toLowerCase().replace(/[-_.]+/g, '-'),
   },
@@ -132,6 +159,16 @@ export interface DetectedProject {
   readonly hasTests: boolean;
   readonly hasLint: boolean;
   readonly hasBuild: boolean;
+  /** Which of `test`/`lint`/`build` the project can actually run. */
+  readonly availableScripts: ReadonlySet<string>;
+  /**
+   * Whether the project names its scripts at all.
+   *
+   * Distinct from an empty set: "this package declares no scripts" means a
+   * missing `test` script is not the project's intent, whereas "there is no
+   * manifest here" means there is nothing to consult and a guess is all there is.
+   */
+  readonly declaresScripts: boolean;
 }
 
 /**
@@ -142,7 +179,7 @@ export interface DetectedProject {
  */
 export function detectProject(cwd: string): DetectedProject {
   const found = ECOSYSTEMS.find((eco) => existsSync(join(cwd, eco.marker)));
-  const contents = found === undefined ? null : readFileSync(join(cwd, found.marker), 'utf8');
+  const contents = found ? readFileSync(join(cwd, found.marker), 'utf8') : null;
   const read = found === undefined || contents === null ? NO_METADATA : found.read(contents);
 
   return {
@@ -155,6 +192,11 @@ export function detectProject(cwd: string): DetectedProject {
     hasTests: ECOSYSTEMS.some((eco) => existsSync(join(cwd, eco.marker))),
     hasLint: existsSync(join(cwd, 'eslint.config.js')) || existsSync(join(cwd, '.eslintrc.json')),
     hasBuild: existsSync(join(cwd, 'tsconfig.json')),
+    availableScripts:
+      found === undefined || contents === null || found.scripts === null
+        ? new Set<string>()
+        : found.scripts(contents),
+    declaresScripts: found !== undefined && contents !== null && found.scripts !== null,
   };
 }
 
@@ -202,11 +244,15 @@ export function renderConfig(project: DetectedProject, tagPrefix = 'v'): string 
     lines.push('');
   }
 
+  // A check is only enabled when the project can actually run it. Enabling
+  // `test: true` in a project with no test script produces "Missing script:
+  // test" on the first run, which reads as "forge is broken" rather than "this
+  // check does not apply here".
+  const checks = renderChecks(project);
+
   lines.push(
     'checks:',
-    `  test: ${project.hasTests}`,
-    `  lint: ${project.hasLint}`,
-    `  build: ${project.hasBuild}`,
+    ...checks.map(([name, enabled]) => `  ${name}: ${enabled}`),
     '',
     'order:',
     '  - github',
@@ -243,7 +289,10 @@ export function writeStarterConfig(c: TerminalConsole, force: boolean): void {
   c.line(`name         ${project.name}`);
   c.line(`ecosystem    ${project.ecosystemId}`);
   if (project.version !== null) c.line(`version      ${project.version}`);
-  c.line(`checks       test=${project.hasTests} lint=${project.hasLint} build=${project.hasBuild}`);
+  const enabled = renderChecks(project)
+    .filter(([, on]) => on)
+    .map(([name]) => name);
+  c.line(`checks       ${enabled.length === 0 ? 'none' : enabled.join(', ')}`);
 
   c.blank();
   writeFileSync(target, renderConfig(project), { encoding: 'utf8' });
@@ -297,6 +346,31 @@ Examples:
     .action((flags: Record<string, boolean>) => {
       writeStarterConfig(out(), flags['force'] === true);
     });
+}
+
+/**
+ * The three checks and whether each is enabled, in display order.
+ *
+ * A project that declares its scripts is trusted: only scripts that exist are
+ * enabled, because `test: true` expands to `npm test` and a missing script fails
+ * with "Missing script: test" — which reads as a broken install rather than a
+ * check that does not apply here.
+ *
+ * A project that declares no scripts at all — a Python package, or a directory
+ * with nothing in it — has nothing to be wrong about, so the file-presence
+ * heuristics stand in and give a starting point.
+ */
+function renderChecks(project: DetectedProject): readonly (readonly [string, boolean])[] {
+  const declaresScripts = project.declaresScripts;
+  const can = (script: string, fallback: boolean): boolean => {
+    if (!declaresScripts) return fallback;
+    return project.availableScripts.has(script);
+  };
+  return [
+    ['test', can('test', project.hasTests)],
+    ['lint', can('lint', project.hasLint)],
+    ['build', can('build', project.hasBuild)],
+  ];
 }
 
 function quoteIfNeeded(value: string): string {

@@ -53,6 +53,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # cli.md is generated from the built binary. Regenerating it here means a
+      # changed help text fails CI instead of leaving the docs quietly wrong.
+      - name: CLI docs are current
+        run: npm run docs:check
+
       - name: Verify CLI starts
         run: node dist/cli/index.js --version
 

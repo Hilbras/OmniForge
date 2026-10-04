@@ -55,4 +55,9 @@ export default tseslint.config(
     files: ['src/cli/**/*.ts', 'src/reporting/**/*.ts'],
     rules: { 'no-console': 'off' },
   },
+  {
+    // Build and maintenance scripts exist to report their result; console is how.
+    files: ['scripts/**/*.ts'],
+    rules: { 'no-console': 'off' },
+  },
 );

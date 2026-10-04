@@ -9,6 +9,7 @@
  */
 
 import { execute, hasShellMetacharacters } from './exec.js';
+import { validateCommand, type CommandWarning } from './validate.js';
 import { CheckError, ErrorCode } from '../errors/index.js';
 import type { CheckConfig, ForgeConfig } from '../configuration/schema.js';
 
@@ -46,6 +47,13 @@ export interface RunChecksOptions {
   readonly onStart?: (name: string, command: readonly string[]) => void;
   /** Called after each check completes. */
   readonly onFinish?: (outcome: CheckOutcome) => void;
+  /**
+   * Called when a configured command looks suspicious.
+   *
+   * Advisory: the check still runs, because `sh -c` is a legitimate choice. The
+   * warning exists so the decision is visible rather than silent.
+   */
+  readonly onWarning?: (name: string, warning: CommandWarning) => void;
 }
 
 /**
@@ -89,6 +97,19 @@ export async function runChecks(
     }
 
     options.onStart?.(name, check.command);
+
+    // Surface anything suspicious before running it. The executor already uses
+    // no shell, so a metacharacter cannot be *interpreted*; this catches the
+    // cases a shell cannot: a cwd outside the project, an overridden loader, or a
+    // credential passed as an argument where anyone running `ps` can read it.
+    const warnings = validateCommand({
+      command: check.command[0] ?? '',
+      args: check.command.slice(1),
+      cwd: config.projectRoot,
+      projectRoot: config.projectRoot,
+    });
+    for (const warning of warnings) options.onWarning?.(name, warning);
+
     const outcome = await runOne(name, check, config.projectRoot, options);
     outcomes.push(outcome);
     options.onFinish?.(outcome);

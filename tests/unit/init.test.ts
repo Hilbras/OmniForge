@@ -99,6 +99,95 @@ describe('detectProject', () => {
   it('reports no tooling in a bare directory', () => {
     expect(detectProject(dir).hasTests).toBe(false);
   });
+
+  it('records which npm scripts exist', () => {
+    write('package.json', JSON.stringify({ name: 'a', scripts: { test: 'x', build: 'y' } }));
+
+    const project = detectProject(dir);
+
+    expect([...project.availableScripts].sort()).toEqual(['build', 'test']);
+    expect(project.declaresScripts).toBe(true);
+  });
+
+  it('treats a package.json with no scripts block as declaring none', () => {
+    // Distinct from having no manifest: here a missing `test` is meaningful,
+    // because the project did have a place to declare one.
+    write('package.json', JSON.stringify({ name: 'a', version: '1.0.0' }));
+
+    const project = detectProject(dir);
+
+    expect(project.declaresScripts).toBe(true);
+    expect(project.availableScripts.size).toBe(0);
+  });
+
+  it('does not claim a Python project declares npm scripts', () => {
+    write('pyproject.toml', '[project]\nname = "acme"\n');
+
+    expect(detectProject(dir).declaresScripts).toBe(false);
+  });
+});
+
+describe('generated checks reflect what the project can run', () => {
+  // Parsed as YAML rather than regexed: the earlier version matched `checks:\\n`
+  // inside a Python-style string, where the escape never became a newline, so
+  // every assertion silently saw an empty block and passed nothing.
+  const checksOf = (yaml: string): Record<string, boolean> => {
+    const parsed = parseYamlText(yaml) as { checks?: Record<string, boolean> };
+    return parsed.checks ?? {};
+  };
+
+  it('enables nothing for a package with no scripts', () => {
+    // The bug this fixes: `test: true` expands to `npm test`, which fails with
+    // "Missing script: test" — reading as a broken install rather than a check
+    // that does not apply.
+    write('package.json', JSON.stringify({ name: 'acme', version: '1.0.0' }));
+
+    expect(checksOf(renderConfig(detectProject(dir)))).toEqual({
+      test: false,
+      lint: false,
+      build: false,
+    });
+  });
+
+  it('enables only the scripts that exist', () => {
+    write('package.json', JSON.stringify({ name: 'acme', scripts: { test: 'x', build: 'z' } }));
+
+    expect(checksOf(renderConfig(detectProject(dir)))).toEqual({
+      test: true,
+      lint: false,
+      build: true,
+    });
+  });
+
+  it('enables all three when all three are declared', () => {
+    write(
+      'package.json',
+      JSON.stringify({ name: 'a', scripts: { test: 'x', lint: 'y', build: 'z' } }),
+    );
+
+    expect(checksOf(renderConfig(detectProject(dir)))).toEqual({
+      test: true,
+      lint: true,
+      build: true,
+    });
+  });
+
+  it('still offers a starting point for a Python project', () => {
+    // Nothing to be wrong about when there are no npm scripts to miss.
+    write('pyproject.toml', '[project]\nname = "acme"\n');
+
+    expect(checksOf(renderConfig(detectProject(dir))).test).toBe(true);
+  });
+
+  it('always writes all three keys', () => {
+    write('package.json', JSON.stringify({ name: 'a', version: '1.0.0' }));
+
+    expect(Object.keys(checksOf(renderConfig(detectProject(dir)))).sort()).toEqual([
+      'build',
+      'lint',
+      'test',
+    ]);
+  });
 });
 
 describe('renderConfig', () => {

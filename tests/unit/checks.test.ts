@@ -240,3 +240,57 @@ describe('summarize', () => {
     expect(summarize(result)).toMatch(/[\d.]+s$/);
   });
 });
+
+describe('suspicious commands are surfaced', () => {
+  const configWith = (command: readonly string[]) =>
+    build(
+      {
+        project: { name: 'acme' },
+        version: { strategy: 'semver', file: 'package.json', tagPrefix: 'v' },
+        github: { enabled: false, repository: 'a/b' },
+        npm: { enabled: false, package: 'a' },
+        pypi: { enabled: false },
+        checks: { odd: { command, optional: false, timeoutMs: 5000 } },
+        order: [],
+      },
+      '/tmp/acme',
+    );
+
+  /**
+   * Collect the warnings for a command.
+   *
+   * The command itself is not guaranteed to exist — `sh` and `npm` may be absent
+   * from PATH in a sandbox — so the warning is asserted from the callback rather
+   * than from a completed run. The warning fires before execution, which is the
+   * behaviour that matters: the user learns about it either way.
+   */
+  const warningsFor = async (command: readonly string[]): Promise<string[]> => {
+    const warnings: string[] = [];
+    await runChecks(configWith(command), {
+      onWarning: (_name, warning) => warnings.push(warning.kind),
+    }).catch(() => undefined);
+    return warnings;
+  };
+
+  it('warns about a shell interpreter', async () => {
+    // Advisory: `sh -c` is a legitimate choice, so the check still runs. The
+    // point is that the decision becomes visible instead of silent.
+    expect(await warningsFor(['sh', '-c', 'true'])).toContain('shell');
+  });
+
+  it('warns about a credential passed as an argument', async () => {
+    const warnings = await warningsFor(['npm', 'publish', '--token', 'abc']);
+
+    expect(warnings).toContain('credential');
+  });
+
+  it('warns about a credential inside an inline script', async () => {
+    // The more likely accident, and the one an earlier version missed because it
+    // only matched a flag at the very start of an argument.
+    expect(await warningsFor(['sh', '-c', 'curl -H "auth: --token abc"'])).toContain('credential');
+  });
+
+  it('says nothing about an ordinary command', async () => {
+    expect(await warningsFor(['npm', 'test'])).toEqual([]);
+  });
+});
