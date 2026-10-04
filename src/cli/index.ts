@@ -29,6 +29,7 @@ import { registerNpmCommand } from './commands/npm.js';
 import { registerReleaseCommand } from './commands/release.js';
 import { registerInitCommand } from './commands/init.js';
 import { registerVerifyCommand } from './commands/verify.js';
+import { registerPyPiCommand } from './commands/pypi.js';
 import { registerVersionCommand } from './commands/version.js';
 import { registerCheckCommand } from './commands/check.js';
 import { ExitCode, exitCodeFor } from './exit-codes.js';
@@ -152,6 +153,7 @@ export function buildProgram(term: TerminalConsole = buildConsole()): Command {
   registerReleaseCommand(program, { ...sink, env: process.env, confirm: askYesNo });
   registerInitCommand(program, { ...sink });
   registerVerifyCommand(program, { ...sink, env: process.env });
+  registerPyPiCommand(program, { ...sink, env: process.env });
   registerVersionCommand(program, { ...sink, confirm: askYesNo });
   registerCheckCommand(program, { ...sink });
 

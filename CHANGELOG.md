@@ -9,6 +9,59 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.10.0] — 2026-10-04
+
+Phase 7 — PyPI provider. The last unimplemented phase.
+
+### Added
+
+- **A full PyPI provider**: builds an sdist and a wheel with `python -m build`,
+  uploads with `twine`, and verifies the release landed. Five checks on verify —
+  release exists, version matches, sdist present, wheel present, not yanked.
+- **`forge pypi`**: `status`, `build`, `publish`, `verify`, mirroring `forge npm`.
+- **PEP 503 name handling** in one place, with the wheel-filename escaping
+  (`foo-bar` ships as `foo_bar`) kept separate from canonicalisation. Comparing a
+  filename to the canonical form without it reports a false mismatch on every
+  hyphenated package.
+- **twine error normalisation**: a duplicate is classified before an auth failure,
+  because a scoped-name duplicate can carry both and "your token is broken" is the
+  wrong advice when the token is fine.
+- **74 tests**: 63 unit with the registry stubbed at `fetch`, 11 integration
+  reading the real PyPI API for a public package.
+
+### Verified without credentials
+
+- A real sdist and wheel were built from a real `pyproject.toml`:
+  `hilbras_forge_demo-0.1.0.tar.gz` and `...-py3-none-any.whl`.
+- `twine check` PASSED both artifacts, so the build output is valid, not merely
+  present.
+- Live verification against PyPI for `requests==2.32.3`: all five checks pass.
+
+### Not verified
+
+**A real upload has not been performed.** The credentials in `~/.pypirc` could not
+be confirmed from this environment: `upload.pypi.org` is intercepted by a proxy
+that answers 405 to both a valid and an invalid token, so the two are
+indistinguishable. `pypi.org/pypi/` also returns 200 for any path, so it cannot be
+used to test authentication either.
+
+This is stated plainly rather than papered over. Everything up to the upload is
+tested; the upload itself is not. The first real release should be a throwaway
+project name.
+
+### Fixed
+
+- **`forge pypi build` skipped validation**, so a missing pyproject.toml reported
+  "could not build the distributions" with advice about a build backend —
+  answering a question the user had not asked. It now validates first.
+- **Four command modules each had their own `contextFor`**, and one of them had a
+  placeholder executor that shadowed the real `gh` runner, so authentication
+  passed in tests and failed in production. Consolidated into one module; a fix now
+  applies everywhere.
+- **A `provider === 'pypi'` conditional in the credential resolver** — the exact
+  platform branching §4.1 forbids, caught by the architecture test in the same
+  release. Now a table.
+
 ## [0.9.2] — 2026-10-04
 
 Phase 14 — documentation.
@@ -593,6 +646,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.10.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.8.1...v0.9.0

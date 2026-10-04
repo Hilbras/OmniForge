@@ -51,6 +51,13 @@ export default tseslint.config(
     rules: { '@typescript-eslint/require-await': 'off' },
   },
   {
+    // The same situation: the Provider contract is async, and a provider whose
+    // `authenticate` or `validate` is purely local has nothing to await. A fake
+    // await would be worse than an exemption.
+    files: ['src/providers/pypi/index.ts'],
+    rules: { '@typescript-eslint/require-await': 'off' },
+  },
+  {
     // The CLI is the one place console output is the product.
     files: ['src/cli/**/*.ts', 'src/reporting/**/*.ts'],
     rules: { 'no-console': 'off' },

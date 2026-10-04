@@ -10,15 +10,14 @@ import type { Command } from 'commander';
 
 import { globalSecrets } from '../../utils/secrets.js';
 import { createConsole, type Console as TerminalConsole, type Palette } from '../../ui/theme.js';
+import { contextFor } from './context.js';
 import { ConfigError, ErrorCode, toForgeError } from '../../errors/index.js';
 import { resolveConfig } from '../../configuration/resolve.js';
 import { resolveGitHub } from '../../authentication/index.js';
 import { readGitRemote, readGitState } from '../../build/git.js';
-import { execute } from '../../build/exec.js';
 import { GitHubProvider } from '../../providers/github/index.js';
 import { getRepository, isAvailable } from '../../providers/github/client.js';
 import type { ForgeConfig } from '../../configuration/schema.js';
-import type { ProviderContext } from '../../core/provider.js';
 
 export interface GitHubCommandDeps {
   readonly write: (text: string) => void;
@@ -66,7 +65,7 @@ Examples:
       const c = out();
       const config = resolveConfig({ cwd: process.cwd() });
       const provider = new GitHubProvider();
-      const ctx = contextFor(config, deps.env, false);
+      const ctx = contextFor(config, deps.env);
 
       c.heading('GitHub');
 
@@ -125,7 +124,7 @@ Examples:
     .action(async () => {
       const c = out();
       const config = resolveConfig({ cwd: process.cwd() });
-      const ctx = contextFor(config, deps.env, false);
+      const ctx = contextFor(config, deps.env);
       const repo = await resolveRepository(config);
 
       if (repo === null) {
@@ -163,7 +162,7 @@ Examples:
     .action(async (flags: Record<string, string | boolean>) => {
       const c = out();
       const config = resolveConfig({ cwd: process.cwd() });
-      const ctx = contextFor(config, deps.env, false);
+      const ctx = contextFor(config, deps.env);
       const provider = new GitHubProvider();
 
       if (flags['show'] === true || flags['releaseVersion'] === undefined) {
@@ -225,7 +224,7 @@ Examples:
         );
       }
 
-      const ctx = contextFor(config, deps.env, false);
+      const ctx = contextFor(config, deps.env);
       const provider = new GitHubProvider();
       const tagPrefix = config.version.tagPrefix;
 
@@ -305,20 +304,3 @@ async function resolveRepository(config: ForgeConfig): Promise<string | null> {
  * provider's `gh` calls authenticate themselves — that is the intended path,
  * not a missing credential, so the CLI reports `gh auth token` as the source.
  */
-function contextFor(config: ForgeConfig, env: NodeJS.ProcessEnv, dryRun: boolean): ProviderContext {
-  return {
-    projectRoot: config.projectRoot,
-    config: config as unknown as Record<string, unknown>,
-    getSecret: () => {
-      const credential = resolveGitHub(env);
-      if (!credential.present || credential.source !== 'environment') return undefined;
-      return env['GITHUB_TOKEN'];
-    },
-    // The real executor, not a placeholder. The provider forwards this to the gh
-    // client and the git helpers, so a stub here would shadow the actual
-    // commands and every GitHub call would silently fail — which is exactly
-    // what happened before this was fixed.
-    execute: { run: (command, args, options) => execute(command, args, options) },
-    dryRun,
-  };
-}

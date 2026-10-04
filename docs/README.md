@@ -56,9 +56,3 @@ npm run docs:check      # fail if it is stale (CI does this)
 
 Help text drifts silently otherwise: a flag is added, nobody updates the prose,
 and the docs become wrong in a way nothing catches.
-
-## Known gap
-
-PyPI publishing is not implemented in V1. It is the one outstanding item between
-the current state and the V1.0.0 Definition of Done, which lists PyPI
-verification. See [providers.md](providers.md#pypi).

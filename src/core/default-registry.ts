@@ -11,12 +11,16 @@
 import { ProviderRegistry, type ProviderFactory } from './registry.js';
 import { GitHubProvider } from '../providers/github/index.js';
 import { NpmProvider } from '../providers/npm/index.js';
+import { PyPiProvider } from '../providers/pypi/index.js';
 
 /** Factory for the GitHub provider. */
 const githubFactory: ProviderFactory = () => new GitHubProvider();
 
 /** Factory for the npm provider. */
 const npmFactory: ProviderFactory = () => new NpmProvider();
+
+/** Factory for the PyPI provider. */
+const pypiFactory: ProviderFactory = () => new PyPiProvider();
 
 /**
  * Build the registry Forge ships with.
@@ -35,5 +39,10 @@ export function createDefaultRegistry(): ProviderRegistry {
       description: 'npm packages: publish, dist-tags, and registry verification',
       capabilities: ['package', 'publish', 'dist-tags', 'verify'],
       versionSources: ['package.json', 'npm registry'],
+    })
+    .register('pypi', pypiFactory, {
+      description: 'PyPI packages: sdist, wheel, upload, and verification',
+      capabilities: ['package', 'upload', 'verify'],
+      versionSources: ['pyproject.toml', 'PyPI'],
     });
 }

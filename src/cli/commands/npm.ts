@@ -9,16 +9,15 @@ import type { Command } from 'commander';
 
 import { globalSecrets } from '../../utils/secrets.js';
 import { createConsole, type Console as TerminalConsole, type Palette } from '../../ui/theme.js';
+import { contextFor } from './context.js';
 import { resolveConfig } from '../../configuration/resolve.js';
 import { resolveCredential } from '../../authentication/index.js';
 import { ConfigError, ErrorCode, toForgeError } from '../../errors/index.js';
 import { readVersionState } from '../../version/engine.js';
 import { isPrerelease } from '../../version/semver.js';
-import { execute } from '../../build/exec.js';
 import { NpmProvider } from '../../providers/npm/index.js';
 import * as npm from '../../providers/npm/client.js';
 import type { ForgeConfig } from '../../configuration/schema.js';
-import type { ProviderContext } from '../../core/provider.js';
 
 export interface NpmCommandDeps {
   readonly write: (text: string) => void;
@@ -68,7 +67,7 @@ Examples:
       const c = out();
       const config = resolveConfig({ cwd: process.cwd() });
       const provider = new NpmProvider();
-      const ctx = contextFor(config, deps.env, false);
+      const ctx = contextFor(config, deps.env);
 
       c.heading('npm');
 
@@ -117,7 +116,7 @@ Examples:
     .action(async () => {
       const c = out();
       const config = resolveConfig({ cwd: process.cwd() });
-      const ctx = contextFor(config, deps.env, false);
+      const ctx = contextFor(config, deps.env);
 
       c.heading('Package');
       try {
@@ -306,7 +305,7 @@ Examples:
       c.heading(`Verify ${name}@${version}`);
 
       try {
-        const result = await new NpmProvider().verify(contextFor(config, deps.env, false), version);
+        const result = await new NpmProvider().verify(contextFor(config, deps.env), version);
         for (const check of result.checks) {
           const line = `${check.name.padEnd(24)} ${check.detail}`;
           if (check.passed) c.success(line);
@@ -345,13 +344,3 @@ function requirePackageName(config: ForgeConfig): string {
  * The real executor, because the npm provider shells out for `whoami`,
  * `pack`, and `publish`. A placeholder here would shadow those commands.
  */
-function contextFor(config: ForgeConfig, env: NodeJS.ProcessEnv, dryRun: boolean): ProviderContext {
-  const credential = resolveCredential('npm', env);
-  return {
-    projectRoot: config.projectRoot,
-    config: config as unknown as Record<string, unknown>,
-    getSecret: () => (credential.present ? env['NPM_TOKEN'] : undefined),
-    execute: { run: (command, args, options) => execute(command, args, options ?? {}) },
-    dryRun,
-  };
-}

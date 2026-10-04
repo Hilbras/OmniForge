@@ -162,15 +162,51 @@ carries _some_ tag — an untagged version cannot be installed by name.
 
 ## PyPI
 
-PyPI publishing is not implemented in V1. It is the one gap between the current
-state and the V1.0.0 Definition of Done, which lists PyPI verification.
+```bash
+forge pypi status      # auth, project name, registry state
+forge pypi build       # sdist + wheel into .forge/dist
+forge pypi publish --dry-run
+forge pypi publish --yes
+forge pypi verify 1.0.0
+```
 
-Everything around it is in place: `pypi` is a known provider name, the schema
-accepts it, `forge init` generates a `pypi:` section for a Python project with a
-PEP 503-normalised name, and the provider registry and pipeline are ready for it.
-What is missing is the implementation and the credentials to test it against.
+Requires `python -m build` and `twine` on `PATH`. Credentials come from
+`PYPI_TOKEN` and are passed to twine through the environment, so they never appear
+in the process list.
 
-Until then, set `pypi: { enabled: false }`.
+```yaml
+pypi:
+  enabled: true
+  package: 'my-package'
+  # Optional. Defaults to https://upload.pypi.org/legacy/.
+  repository: https://upload.pypi.org/legacy/
+```
+
+**Verification checks five things**, because a release can exist and still be
+unusable:
+
+```text
+Verify my-package@1.0.0
+✓ release-exists   https://pypi.org/project/my-package/1.0.0/
+✓ version-matches  PyPI reports 1.0.0
+✓ has-sdist        sdist present
+✓ has-wheel        wheel present
+✓ not-yanked       not yanked
+```
+
+A release with no sdist cannot be installed on a platform its wheels do not cover,
+which is the point of publishing one.
+
+**Project names are PEP 503 normalised**, so `Foo.Bar`, `foo_bar` and `foo-bar` are
+one project. Forge compares names after normalising, and `forge init` normalises a
+Python project's name when generating the config.
+
+**A dry run is a real rehearsal.** `--dry-run` passes `--skip-existing` to twine,
+which performs the same existence check PyPI does — so a dry run catches a version
+that is already published instead of always reporting success.
+
+**Requires:** an sdist _and_ a wheel. Missing either is reported before upload,
+not after.
 
 ## Enabling and ordering
 

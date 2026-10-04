@@ -267,6 +267,21 @@ reporting privately.
 
 ---
 
+### `twine could not start`
+
+twine failed before uploading anything. Usually one of two things:
+
+```bash
+twine --version          # does twine run at all?
+echo "$PYTHONPATH"       # is a stale path shadowing its dependencies?
+```
+
+An inherited `PYTHONPATH` pointing at another virtualenv's `site-packages` will
+break twine with `ImportError: cannot import name 'errors' from 'packaging'`, even
+though twine is installed correctly. Unsetting `PYTHONPATH` fixes it.
+
+---
+
 ## Getting help
 
 Include, from a version that reproduces it:

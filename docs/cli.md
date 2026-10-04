@@ -62,6 +62,7 @@ Commands:
   init [options]               Create a forge.config.yaml for this project
   verify [options] [version]   Confirm every provider agrees on the released
                                version
+  pypi                         Inspect and publish PyPI packages
   version                      Inspect and compute project versions
   check [options] [names...]   Run the configured checks
   test [options]               Run the test check

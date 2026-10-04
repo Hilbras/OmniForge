@@ -14,10 +14,9 @@ import type { Command } from 'commander';
 import { resolveConfig } from '../../configuration/resolve.js';
 import { createDefaultRegistry } from '../../core/default-registry.js';
 import { readVersionState } from '../../version/engine.js';
-import { execute } from '../../build/exec.js';
 import { ExitCode } from '../exit-codes.js';
+import { contextFor } from './context.js';
 import type { ForgeConfig } from '../../configuration/schema.js';
-import type { ProviderContext } from '../../core/provider.js';
 import {
   assertIntegrity,
   summarize,
@@ -193,23 +192,4 @@ function enabledProviders(config: ForgeConfig, only?: readonly string[]): readon
   // widened once here rather than casting at the call site.
   const configured = new Set<string>(base);
   return only.filter((name) => configured.has(name));
-}
-
-/** Build a provider context with the real executor. */
-function contextFor(config: ForgeConfig, env: NodeJS.ProcessEnv): ProviderContext {
-  return {
-    projectRoot: config.projectRoot,
-    config: config as unknown as Record<string, unknown>,
-    getSecret: (provider: string) => {
-      if (!/^[a-z][a-z0-9]*$/.test(provider)) return undefined;
-      const value = env[`${provider.toUpperCase()}_TOKEN`];
-      return value !== undefined && value.length > 0 ? value : undefined;
-    },
-    execute: {
-      run: (command, args, options) => {
-        return execute(command, args, options ?? {});
-      },
-    },
-    dryRun: false,
-  };
 }

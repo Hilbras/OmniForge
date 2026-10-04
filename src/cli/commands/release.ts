@@ -19,14 +19,13 @@ import { readVersionState, nextVersion, writeVersion } from '../../version/engin
 import { isPrerelease, type BumpStrategy } from '../../version/semver.js';
 import { assertChecksPassed, runChecks } from '../../build/checks.js';
 import { createTag, pushTag } from '../../build/git.js';
-import { execute } from '../../build/exec.js';
 import { createDefaultRegistry } from '../../core/default-registry.js';
 import type { ForgeConfig } from '../../configuration/schema.js';
 import { runRelease, type ReleaseResult, type StepResult } from '../../release/pipeline.js';
 import { render, writeReport, type ReportFormat } from '../../release/report.js';
 import { ExitCode } from '../exit-codes.js';
+import { contextFor } from './context.js';
 import { ConfigError, ErrorCode } from '../../errors/index.js';
-import type { ProviderContext } from '../../core/provider.js';
 
 export interface ReleaseCommandDeps {
   readonly write: (text: string) => void;
@@ -295,23 +294,6 @@ function reportStep(c: TerminalConsole, step: StepResult): void {
  *
  * The real executor, because providers shell out for `gh`, `npm`, and `git`.
  */
-function contextFor(config: ForgeConfig, env: NodeJS.ProcessEnv, dryRun: boolean): ProviderContext {
-  return {
-    projectRoot: config.projectRoot,
-    config: config as unknown as Record<string, unknown>,
-    // The convention is `<PROVIDER>_TOKEN`, so the name is derived rather than
-    // matched against a list — naming the platforms here would be exactly the
-    // per-provider branching the architecture test forbids. A provider with a
-    // custom `tokenEnv` resolves it through the config it was given.
-    getSecret: (provider: string) => {
-      if (!/^[a-z][a-z0-9]*$/.test(provider)) return undefined;
-      const value = env[`${provider.toUpperCase()}_TOKEN`];
-      return value !== undefined && value.length > 0 ? value : undefined;
-    },
-    execute: { run: (command, args, options) => execute(command, args, options ?? {}) },
-    dryRun,
-  };
-}
 
 /**
  * Secrets resolved this run, so reports can redact them.
