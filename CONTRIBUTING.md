@@ -1,10 +1,10 @@
-# Contributing to Hilbras Forge
+# Contributing to OmniForge
 
 ## Getting set up
 
 ```bash
-git clone git@github.com:Hilbras/hilbras-forge.git
-cd hilbras-forge
+git clone git@github.com:Hilbras/OmniForge.git
+cd OmniForge
 npm install
 npm run build
 npm test

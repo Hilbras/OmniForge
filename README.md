@@ -1,15 +1,15 @@
-# Hilbras Forge
+# OmniForge
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@hilbras/forge"><img src="https://img.shields.io/npm/v/@hilbras/forge?style=flat-square&labelColor=gray" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/@hilbras/forge"><img src="https://img.shields.io/npm/dm/@hilbras/forge?style=flat-square&labelColor=gray" alt="npm downloads"></a>
-  <a href="https://github.com/Hilbras/hilbras-forge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Hilbras/hilbras-forge/ci.yml?style=flat-square&labelColor=gray" alt="CI"></a>
-  <a href="https://github.com/Hilbras/hilbras-forge/releases/latest"><img src="https://img.shields.io/github/v/release/hilbras-forge?style=flat-square&labelColor=gray&include_prereleases&sort=semver" alt="release"></a>
-  <a href="https://github.com/Hilbras/hilbras-forge/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square&labelColor=gray" alt="MIT licensed"></a>
+  <a href="https://www.npmjs.com/package/@hilbras/omniforge"><img src="https://img.shields.io/npm/v/@hilbras/omniforge?style=flat-square&labelColor=gray" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@hilbras/omniforge"><img src="https://img.shields.io/npm/dm/@hilbras/omniforge?style=flat-square&labelColor=gray" alt="npm downloads"></a>
+  <a href="https://github.com/Hilbras/OmniForge/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Hilbras/OmniForge/ci.yml?style=flat-square&labelColor=gray" alt="CI"></a>
+  <a href="https://github.com/Hilbras/OmniForge/releases/latest"><img src="https://img.shields.io/github/v/release/OmniForge?style=flat-square&labelColor=gray&include_prereleases&sort=semver" alt="release"></a>
+  <a href="https://github.com/Hilbras/OmniForge/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square&labelColor=gray" alt="MIT licensed"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D22.12-5FA04E?style=flat-square&labelColor=gray" alt="Node 22.12+"></a>
   <a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/typescript-strict-3178C6?style=flat-square&labelColor=gray" alt="TypeScript strict"></a>
   <img src="https://img.shields.io/badge/tests-854-8A2BE2?style=flat-square&labelColor=gray" alt="854 tests">
-  <a href="https://github.com/Hilbras/hilbras-forge/graphs/contributors"><img src="https://img.shields.io/github/contributors/Hilbras/hilbras-forge?style=flat-square&labelColor=gray" alt="Contributors"></a>
+  <a href="https://github.com/Hilbras/OmniForge/graphs/contributors"><img src="https://img.shields.io/github/contributors/Hilbras/OmniForge?style=flat-square&labelColor=gray" alt="Contributors"></a>
 </p>
 
 **Unified release, publishing, versioning, and package management platform.**
@@ -124,13 +124,13 @@ Requires Node.js >= 22.12. The minor matters: `commander` needs `>=22.12.0` and
 vitest needs `^22.12.0`. CI tests 22.12, 24, and 26 on all three platforms.
 
 ```bash
-npm install -g @hilbras/forge
+npm install -g @hilbras/omniforge
 ```
 
 Or run without installing:
 
 ```bash
-npx @hilbras/forge --help
+npx @hilbras/omniforge --help
 ```
 
 ---
@@ -274,7 +274,7 @@ forge verify --report json
 ```
 
 ```text
-Verify @hilbras/forge@0.8.0
+Verify @hilbras/omniforge@0.8.0
 ✓ github     v0.8.0       ok
 ✓ npm        0.8.0        ok
 
@@ -464,8 +464,8 @@ Next, in rough priority order:
 ## Development
 
 ```bash
-git clone git@github.com:Hilbras/hilbras-forge.git
-cd hilbras-forge
+git clone git@github.com:Hilbras/OmniForge.git
+cd OmniForge
 npm install
 npm run build
 npm test
@@ -482,7 +482,7 @@ npm test
 | `npm run dev`           | Run the CLI from source via tsx |
 
 CI runs lint, format check, typecheck, tests, and build on Linux, Windows, and
-macOS, and verifies the published tarball excludes tests and sources.
+macOS, and  macOS, and verifies the published tarball excludes tests and sources.
 
 ---
 

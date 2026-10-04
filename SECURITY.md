@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Do not open a public issue. Use GitHub Security Advisories on
-[Hilbras/hilbras-forge](https://github.com/Hilbras/hilbras-forge/security/advisories/new).
+[Hilbras/OmniForge](https://github.com/Hilbras/OmniForge/security/advisories/new).
 
 Include the affected version, reproduction steps, and impact. You can expect an
 acknowledgement within a few days and a fix or mitigation plan once confirmed.

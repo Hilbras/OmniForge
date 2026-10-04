@@ -60,7 +60,7 @@ forge github status
 GitHub
 gh CLI        available
 ✓ credentials   authenticated as your-account
-repository    Hilbras/hilbras-forge
+repository    Hilbras/OmniForge
 branch        main
 commit        0bbd2d2
 ⚠ working tree  6 uncommitted change(s)
@@ -213,11 +213,11 @@ not after.
 ```yaml
 github:
   enabled: true
-  repository: Hilbras/hilbras-forge
+  repository: Hilbras/OmniForge
 
 npm:
   enabled: true
-  package: '@hilbras/forge'
+  package: '@hilbras/omniforge'
 
 pypi:
   enabled: false

@@ -170,7 +170,7 @@ function fallbackNotes(input: NotesInput): string {
   return [
     `## ${input.tagPrefix}${input.version}`,
     '',
-    'Released automatically by [Forge](https://github.com/Hilbras/hilbras-forge).',
+    'Released automatically by [Forge](https://github.com/Hilbras/OmniForge).',
     '',
     'No changelog entry or commit history was found for this version.',
   ].join('\n');

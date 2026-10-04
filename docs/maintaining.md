@@ -1,4 +1,4 @@
-# Maintaining Hilbras Forge
+# Maintaining OmniForge
 
 Notes for working on Forge itself, as opposed to using it. Verified 2026-10-01.
 
@@ -69,7 +69,7 @@ real symlink. **Any new entry point needs the same treatment.**
 
 Verifying this locally is not enough. `node dist/cli/index.js` and `npm link`
 both work while the published package is broken — only
-`npm install @hilbras/forge@<v>` in a clean directory exercises the real path.
+`npm install @hilbras/omniforge@<v>` in a clean directory exercises the real path.
 
 ### Version numbers must exist
 

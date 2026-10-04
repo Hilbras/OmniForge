@@ -440,12 +440,12 @@ export function validatePackageName(name: string): string | null {
   if (name.startsWith('@')) {
     const slash = name.indexOf('/');
     if (slash === -1) {
-      return 'Scoped package names need a scope and a name, e.g. @hilbras/forge.';
+      return 'Scoped package names need a scope and a name, e.g. @hilbras/omniforge.';
     }
     const scope = name.slice(1, slash);
     const body = name.slice(slash + 1);
     if (scope.length === 0)
-      return 'Scoped package names need a scope before the "@", e.g. @hilbras/forge.';
+      return 'Scoped package names need a scope before the "@", e.g. @hilbras/omniforge.';
     if (body.length === 0) return 'Scoped package names need a name after the scope.';
   }
 

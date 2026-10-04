@@ -1,10 +1,10 @@
 /**
- * Public entry point for `@hilbras/forge`.
+ * Public entry point for `@hilbras/omniforge`.
  *
  * Consumers embedding Forge as a library get the provider contract, the
  * registry, the error taxonomy, and the factory that assembles a default
  * registry. Concrete provider implementations are reachable via the
- * `@hilbras/forge/providers` subpath export.
+ * `@hilbras/omniforge/providers` subpath export.
  */
 
 export {

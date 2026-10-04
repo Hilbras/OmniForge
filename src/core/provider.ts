@@ -37,7 +37,7 @@ export interface ProviderCapabilities {
 /** Result of authenticating. Holds no secret material. */
 export interface AuthResult {
   readonly authenticated: boolean;
-  /** Non-secret identity, e.g. `lacrous` or `@hilbras/forge`. */
+  /** Non-secret identity, e.g. `lacrous` or `@hilbras/omniforge`. */
   readonly identity?: string;
 }
 

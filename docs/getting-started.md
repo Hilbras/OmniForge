@@ -5,13 +5,13 @@ Ten minutes from an empty directory to a released package.
 ## 1. Install
 
 ```bash
-npm install -g @hilbras/forge
+npm install -g @hilbras/omniforge
 ```
 
 Requires Node.js >= 22.12. Or skip installing:
 
 ```bash
-npx @hilbras/forge --help
+npx @hilbras/omniforge --help
 ```
 
 ## 2. Generate a config

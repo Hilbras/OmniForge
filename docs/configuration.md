@@ -179,7 +179,7 @@ forge config show --repository Other/Repo
 `forge config validate` exits `2` on any problem, so CI can gate on it:
 
 ```yaml
-- run: npm install -g @hilbras/forge
+- run: npm install -g @hilbras/omniforge
 - run: forge config validate
 ```
 
