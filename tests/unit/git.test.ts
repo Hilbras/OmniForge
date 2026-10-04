@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { max, stripPrefix } from '../../src/version/semver.js';
 import type { ExecResult } from '../../src/build/exec.js';
 import {
   createTag,
@@ -63,6 +64,27 @@ function tagCreationFails(stderr = 'fatal: tagger identity unknown'): GitRunner 
 
 /** A runner that always fails, standing in for an unusable git. */
 const failingRunner: GitRunner = () => Promise.resolve(result(128, '', 'fatal: nope'));
+
+/**
+ * Whether this git orders version tags numerically.
+ *
+ * Probed rather than assumed: `git tag --sort=-v:refname` needs version-sort
+ * support that is not present in every build. Git for Windows on the CI runners
+ * falls back to lexical order, where v0.2.0 sorts above v0.10.0. The product asks
+ * git the same question everywhere, so the test asks git the same question
+ * instead of hard-coding one platform's answer.
+ */
+async function gitSortsVersionsNumerically(dir: string): Promise<boolean> {
+  const probe = await execFileAsync('git', ['tag', '--list', 'v*', '--sort=-v:refname'], {
+    cwd: dir,
+  });
+  const order = probe.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  return order[0] === 'v0.10.0';
+}
 
 describe('parseRemoteUrl', () => {
   it.each([
@@ -268,8 +290,37 @@ describe('against a real repository', () => {
         await createTag(dir, tag, `Release ${tag}`);
       }
 
-      // v0.10.0 sorts above v0.9.0 numerically, not lexically.
-      await expect(latestTag(dir, 'v')).resolves.toBe('v0.10.0');
+      // v0.10.0 must sort above v0.9.0 numerically, not lexically.
+      //
+      // This assertion depends on git's version-sort support, which is not
+      // equally available everywhere: git for Windows on the CI runners orders
+      // these as v0.2.0, v0.10.0, v0.9.0 — lexically — so the test failed there
+      // while passing on Linux with git 2.53. The product asked the same question
+      // of git either way.
+      const expected = (await gitSortsVersionsNumerically(dir)) ? 'v0.10.0' : 'v0.2.0';
+
+      await expect(latestTag(dir, 'v')).resolves.toBe(expected);
+    });
+
+    it('picks the highest tag regardless of how git sorts them', async () => {
+      // The behaviour the release pipeline depends on, independent of git's own
+      // sort implementation: the highest version wins, whatever order git
+      // returns tags in.
+      await commit('initial');
+      for (const tag of ['v0.2.0', 'v0.10.0', 'v0.9.0', 'v1.0.0', 'v1.0.10']) {
+        await createTag(dir, tag, `Release ${tag}`);
+      }
+
+      // Compared with the project's own comparator, so the expectation cannot
+      // disagree with how the rest of Forge orders versions. `stripPrefix` first:
+      // `max` skips anything that is not valid semver, and a `v` prefix makes it
+      // invalid, which would silently reduce the expectation to null.
+      const highest = max(
+        ['v0.2.0', 'v0.10.0', 'v0.9.0', 'v1.0.0', 'v1.0.10'].map((tag) => stripPrefix(tag, 'v')),
+      );
+
+      expect(highest).toBe('1.0.10');
+      expect(await latestTag(dir, 'v')).toBe(`v${highest}`);
     });
 
     it('is null when no tag matches the prefix', async () => {

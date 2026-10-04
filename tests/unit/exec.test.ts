@@ -354,13 +354,21 @@ describe('buildInvocation', () => {
     const { program, args } = buildInvocation('npm.cmd', ['--version']);
 
     expect(program.toLowerCase()).toContain('cmd');
-    const line = args[3] ?? '';
     expect(args.slice(0, 3)).toEqual(['/d', '/s', '/c']);
-    // The command name must be bare. Quoting it leaves cmd looking for a program
-    // literally called `"npm.cmd"`, which fails with 'is not recognized' — that is
-    // what the Windows jobs reported when every argument was quoted.
-    expect(line.startsWith('npm.cmd ')).toBe(true);
-    expect(line).not.toContain('"npm.cmd"');
+
+    // /s consumes exactly one outer quote pair. That pair has to wrap the whole
+    // line: if it wraps an argument instead, the surviving quotes become literal
+    // and the command reports 'Unknown command: ""pack""'.
+    const line = args[3] ?? '';
+    expect(line.startsWith('"')).toBe(true);
+    expect(line.endsWith('"')).toBe(true);
+
+    // After /s strips it, the command name is bare and each argument keeps its
+    // own quotes.
+    const inner = line.slice(1, -1);
+    expect(inner.startsWith('npm.cmd ')).toBe(true);
+    expect(inner).not.toContain('"npm.cmd"');
+    expect(inner).toBe('npm.cmd "--version"');
   });
 
   it('produces the command line cmd.exe actually parses', () => {
@@ -370,6 +378,6 @@ describe('buildInvocation', () => {
 
     const { args } = buildInvocation('npm.cmd', ['pack', '--dry-run', '--json']);
 
-    expect(args[3]).toBe('npm.cmd "pack" "--dry-run" "--json"');
+    expect(args[3]).toBe('"npm.cmd "pack" "--dry-run" "--json""');
   });
 });

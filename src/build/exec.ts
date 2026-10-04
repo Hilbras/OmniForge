@@ -106,21 +106,28 @@ export function buildInvocation(
     return { program, args: [...args] };
   }
 
-  // The command name itself is left bare. With /s, cmd strips the outermost pair
-  // of quotes from the command line and then treats the first token as the
-  // program; quoting the program name leaves a literal `"npm.cmd"` to look up,
-  // which fails with "'npm.cmd' is not recognized as an internal or external
-  // command" — observed on the Windows CI jobs.
+  // The whole line is wrapped in one pair of quotes, and every argument inside it
+  // is quoted as well. Both are required, and getting either wrong was observed on
+  // the Windows CI runners:
   //
-  // Arguments are quoted, including ones with no metacharacters: cmd strips only
-  // the outermost pair, so an unquoted value containing whitespace would split
-  // into two arguments after stripping.
+  //   Inner quotes only — cmd strips the outermost pair, which was one of the
+  //   argument quotes, so the survivors became literal: `npm.cmd "pack"` parsed
+  //   as the command `npm.cmd` with the argument `"pack"` including its quotes,
+  //   and npm reported `Unknown command: ""pack""`.
+  //
+  //   Outer quotes only — an argument containing whitespace split into two.
+  //
+  // With the outer pair consumed by /s, each inner pair is what cmd sees as
+  // delimiting one argument, and the command name itself is bare.
   //
   // /d skips AutoRun registry entries, which would otherwise execute on every
   // single invocation.
-  const line = [program, ...args.map(quoteCmdArgument)].join(' ');
+  const inner = [program, ...args.map(quoteCmdArgument)].join(' ');
 
-  return { program: process.env.ComSpec ?? 'cmd.exe', args: ['/d', '/s', '/c', line] };
+  return {
+    program: process.env.ComSpec ?? 'cmd.exe',
+    args: ['/d', '/s', '/c', `"${inner}"`],
+  };
 }
 
 /**
