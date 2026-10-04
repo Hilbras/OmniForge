@@ -11,11 +11,11 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.8.1 — verification and release integrity.** `forge release` runs the
-> whole workflow, `forge verify` checks afterward that every provider agrees on
-> one version, and credential redaction is enforced at every output sink. GitHub
-> and npm are implemented; PyPI is pending credentials. See
-> [Roadmap](#roadmap).
+> **Status: v0.9.0 — testing and reliability.** `forge release` runs the whole
+> workflow, `forge verify` checks afterward that every provider agrees on one
+> version, and credential redaction is enforced at every output sink. 708 tests,
+> with coverage thresholds that fail the build. GitHub and npm are implemented;
+> PyPI is pending credentials. See [Roadmap](#roadmap).
 
 ---
 
@@ -41,7 +41,8 @@ fails the build if Core imports a provider or branches on a platform name.
 
 ## Install
 
-Requires Node.js >= 22.
+Requires Node.js >= 22.12. The minor matters: `commander` needs `>=22.12.0` and
+vitest needs `^22.12.0`. CI tests 22.12, 24, and 26 on all three platforms.
 
 ```bash
 npm install -g @hilbras/forge

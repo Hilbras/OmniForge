@@ -92,35 +92,59 @@ export async function readGitRemote(
 /**
  * Parse a git remote URL into `owner/name`.
  *
- * Handles the three shapes that appear in practice:
+ * Handles the shapes that appear in practice:
  *   git@github.com:owner/name.git
  *   https://github.com/owner/name.git
  *   ssh://git@github.com/owner/name.git
+ *
+ * Three cases need care, each of which previously produced a wrong answer:
+ *
+ * - A trailing slash after `.git` left `name.git/` in the result, because the
+ *   `.git` suffix is stripped before the empty segment is removed.
+ * - A nested group (`group/sub/project`) was truncated to `group/sub`, because
+ *   the scp-like pattern accepted only two path segments. Self-hosted GitLab and
+ *   GitHub Enterprise both use nested groups, and the owner/name pair Forge looks
+ *   up must be the full path.
+ * - A bare local path (`/srv/git/repo`) parsed to `git/repo`, inventing a
+ *   repository that has no remote host at all. Only a URL with a scheme, or an
+ *   scp-like `host:path`, is a remote.
  */
 export function parseRemoteUrl(url: string): string | null {
-  if (url.length === 0) return null;
+  const trimmed = url.trim();
+  if (trimmed.length === 0) return null;
 
-  // scp-like: git@host:owner/name.git
-  const scp = /^(?:[^@/]+@)?[^:/]+:([^/]+\/[^/]+?)(?:\.git)?$/.exec(url);
-  if (scp?.[1] !== undefined) return scp[1];
+  // A local filesystem path is not a remote. Checked before the URL parse, which
+  // would otherwise read `/srv/git/repo` as a host-relative path.
+  if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) return null;
+  if (trimmed.startsWith('file://')) return null;
+
+  // scp-like: [user@]host:owner/name[.git]
+  const scp = /^(?:[^@/]+@)?[^@:/]+:(.+)$/.exec(trimmed);
+  if (scp?.[1] !== undefined && !trimmed.includes('://')) {
+    const path = stripGitSuffix(scp[1]);
+    if (isOwnerName(path)) return path;
+  }
 
   // scheme://[user@]host/owner/name[.git]
   try {
-    const parsed = new URL(url.includes('://') ? url : `https://${url}`);
-    const segments = parsed.pathname
-      .replace(/^\//, '')
-      .replace(/\.git$/, '')
-      .split('/');
-    if (segments.length >= 2) {
-      const owner = segments[0];
-      const name = segments.slice(1).join('/');
-      if (owner !== undefined && name !== undefined) return `${owner}/${name}`;
-    }
+    const parsed = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    const path = stripGitSuffix(parsed.pathname.replace(/^\//, ''));
+    if (isOwnerName(path)) return path;
   } catch {
     return null;
   }
 
   return null;
+}
+
+/** Remove a `.git` suffix and any trailing slashes, in either order. */
+function stripGitSuffix(path: string): string {
+  return path.replace(/\/+$/, '').replace(/\.git$/, '');
+}
+
+/** True when a path has at least an owner and a name. */
+function isOwnerName(path: string): boolean {
+  return path.split('/').filter((segment) => segment.length > 0).length >= 2;
 }
 
 /** True when a tag exists locally. */

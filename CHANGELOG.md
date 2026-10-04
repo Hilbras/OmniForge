@@ -9,6 +9,69 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.9.0] — 2026-10-04
+
+Phase 12 — testing and reliability. 708 tests, up from 628.
+
+This phase was mostly about looking for what the tests did _not_ cover, because
+"708 tests" is a number, not a guarantee. Four real defects surfaced, all of them
+in code that had shipped.
+
+### Fixed
+
+- **`parseRemoteUrl` mangled three remote URL shapes.** A trailing slash after
+  `.git` left `name.git/` in the result; a nested GitLab group
+  (`group/sub/project`) was truncated to `group/sub`; and a bare local path
+  (`/srv/git/repo`) parsed to `git/repo`, inventing a repository with no remote
+  host. This function decides which GitHub repository Forge talks to, so each of
+  those was a lookup against the wrong place — or a repository that does not
+  exist.
+
+- **`validatePackageName` accepted an empty scope.** `@/sdk` passed validation
+  because the leading `@` was read as an unscoped prefix. npm rejects it.
+
+- **npm auth failures were misclassified in two directions.**
+  `"You must be logged in"` fell through to the generic branch, so a permissions
+  problem was reported as an unexplained failure; and a duplicate publish on a
+  scoped package — which npm emits as `E409` _and_ `403` together — was read as
+  an auth failure, telling the user to fix a token that works perfectly.
+  Duplicates are now classified first.
+
+- **The declared Node floor was wrong.** `engines` said `>=22`, but `commander`
+  requires `>=22.12.0` and vitest requires `^22.12.0`, so installing on 22.0
+  would break. Corrected to `>=22.12.0`.
+
+### Added
+
+- **Coverage thresholds** in `vitest.config.ts`, per directory rather than
+  globally. A global number would be meaningless here: the CLI is tested by
+  spawning the built binary, which v8 coverage cannot observe, so `src/cli/**`
+  reports near-zero while being well covered by integration tests that assert
+  observable behaviour instead. Thresholds now cover the decision-making code,
+  where a dropped branch means a release silently does the wrong thing — and
+  `npm test` fails when they slip.
+- **37 git tests against a real repository** in a temp directory, rather than a
+  stub: a stub only proves the code calls what the stub expects. Covers annotated
+  tags, duplicate-tag refusal, version sorting, pushing to a real bare remote, and
+  the error paths that need an unusable git.
+- **33 npm error-normalization tests** built from real npm output. This function
+  is the only place npm's undocumented prose becomes a typed error, so it decides
+  whether a user is told "you already published this" or "your token is invalid".
+  One case came from actually running `npm publish` against a bad version and
+  reading the output: `ETARGET`, which was falling through to the generic branch.
+- **CI tests Node 22.12, 24, and 26** across all three platforms, instead of only 24. The full suite was run locally on 22.23 first, so the matrix asserts a
+  verified claim rather than a hopeful one.
+- A visible coverage step in CI.
+
+### Metrics
+
+|                    | before | after              |
+| ------------------ | ------ | ------------------ |
+| tests              | 628    | 708                |
+| `src/build/git.ts` | 46%    | 95%                |
+| `src/build`        | 81%    | 95%                |
+| coverage enforced  | no     | yes, per directory |
+
 ## [0.8.1] — 2026-10-04
 
 Patch release. Both fixes below were found by verifying the v0.8.0 release from a
@@ -435,6 +498,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.9.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.6.0...v0.7.0

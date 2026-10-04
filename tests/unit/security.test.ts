@@ -103,6 +103,64 @@ describe('SecretRegistry', () => {
     expect(registry.redactIfSecret('HOME', '/home/user')).toBe('/home/user');
   });
 
+  describe('addFromEnv', () => {
+    // Called by the CLI to seed the registry at startup. It runs inside a
+    // subprocess in the integration tests, so v8 coverage cannot observe it —
+    // these tests exist so the behaviour is verified directly rather than
+    // assumed to work because the leak tests pass.
+    it('registers every secret-named variable', () => {
+      const registry = new SecretRegistry().addFromEnv({
+        NPM_TOKEN: 'npm_firstvalue_1',
+        GITHUB_TOKEN: 'ghp_secondvalue_2',
+        MY_SECRET: 'thirdvalue_3',
+        HOME: '/home/user',
+        PATH: '/usr/bin',
+        CI: 'true',
+      });
+
+      expect(registry.size).toBe(3);
+      expect(registry.has('npm_firstvalue_1')).toBe(true);
+      expect(registry.has('ghp_secondvalue_2')).toBe(true);
+      expect(registry.has('thirdvalue_3')).toBe(true);
+    });
+
+    it('does not register ordinary variables', () => {
+      const registry = new SecretRegistry().addFromEnv({ HOME: '/home/user', PATH: '/usr/bin' });
+
+      expect(registry.size).toBe(0);
+    });
+
+    it('ignores a secret-named variable that is empty', () => {
+      const registry = new SecretRegistry().addFromEnv({ NPM_TOKEN: '' });
+
+      expect(registry.size).toBe(0);
+    });
+
+    it('is chainable', () => {
+      const registry = new SecretRegistry().addFromEnv({ NPM_TOKEN: 'npm_chainvalue_1' });
+
+      expect(registry).toBeInstanceOf(SecretRegistry);
+      expect(registry.size).toBe(1);
+    });
+  });
+
+  describe('has', () => {
+    it('reports whether a value is registered', () => {
+      const registry = new SecretRegistry();
+      registry.add('npm_registered_value_1');
+
+      expect(registry.has('npm_registered_value_1')).toBe(true);
+      expect(registry.has('npm_never_added_value')).toBe(false);
+    });
+
+    it('is false for a value that was too short to register', () => {
+      const registry = new SecretRegistry();
+      registry.add('short');
+
+      expect(registry.has('short')).toBe(false);
+    });
+  });
+
   describe('redactDeep', () => {
     it('redacts nested strings', () => {
       const registry = new SecretRegistry();

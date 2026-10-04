@@ -328,11 +328,16 @@ export function normalizePublishError(name: string, version: string, output: str
   if (
     text.includes('eneedauth') ||
     text.includes('need auth') ||
-    text.includes('to be logged in') ||
+    // npm emits both "You need to be logged in" and "You must be logged in";
+    // matching only one phrasing let the other fall through to the generic
+    // branch and report a permissions problem as an unexplained failure.
+    text.includes('be logged in') ||
     text.includes('403 forbidden') ||
-    // A bare 403 with no other explanation is a permissions problem; a 403 that
-    // mentions publishing is handled above as a duplicate.
-    (text.includes('403') && !text.includes('cannot publish over'))
+    // A 403 is a permissions problem — but only once a duplicate has been ruled
+    // out above. npm emits 403 alongside E409 for a duplicate publish on a
+    // scoped package, and calling that an auth failure tells the user to fix a
+    // token that is working perfectly.
+    text.includes('403')
   ) {
     return new AuthError(ErrorCode.AUTH_FAILED, `npm refused to publish ${name}.`, {
       provider: 'npm',
@@ -352,6 +357,24 @@ export function normalizePublishError(name: string, version: string, output: str
         operation: 'npm.publish',
         remediation: 'Private packages require a paid plan on npm.',
         detail: { package: name },
+      },
+    );
+  }
+
+  // `ETARGET` is npm's "no matching version found", which is what a publish of a
+  // version the registry cannot resolve actually produces. It was falling through
+  // to the generic branch, telling the user to run npm manually for an error with
+  // a known cause.
+  if (text.includes('etarget') || text.includes('no matching version')) {
+    return new ProviderError(
+      ErrorCode.PROVIDER_FAILED,
+      `npm could not resolve ${name}@${version}.`,
+      {
+        provider: 'npm',
+        operation: 'npm.publish',
+        remediation:
+          'Check that npm.package and the version in package.json match a resolvable registry entry.',
+        detail: { package: name, version },
       },
     );
   }
@@ -388,11 +411,23 @@ export function validatePackageName(name: string): string | null {
     return 'Package name must not start with "." or "_".';
   }
 
-  const body = name.startsWith('@') ? name.split('/')[1] : name;
-  if (name.startsWith('@') && !name.includes('/')) {
-    return 'Scoped package names need a scope and a name, e.g. @hilbras/forge.';
+  // Scope handling. `@acme` has no name, and `@/sdk` has no scope — both are
+  // rejected by npm, and both previously slipped through: the empty scope made
+  // the name look unscoped-and-valid once the `@` was taken as a prefix.
+  if (name.startsWith('@')) {
+    const slash = name.indexOf('/');
+    if (slash === -1) {
+      return 'Scoped package names need a scope and a name, e.g. @hilbras/forge.';
+    }
+    const scope = name.slice(1, slash);
+    const body = name.slice(slash + 1);
+    if (scope.length === 0)
+      return 'Scoped package names need a scope before the "@", e.g. @hilbras/forge.';
+    if (body.length === 0) return 'Scoped package names need a name after the scope.';
   }
-  if (body === undefined || body.length === 0) {
+
+  const body = name.startsWith('@') ? (name.split('/')[1] ?? '') : name;
+  if (body.length === 0) {
     return 'Package name must have a name after the scope.';
   }
 
