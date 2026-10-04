@@ -351,24 +351,22 @@ describe('buildInvocation', () => {
       return;
     }
 
-    const { program, args } = buildInvocation('npm.cmd', ['--version']);
+    const invocation = buildInvocation('npm.cmd', ['--version']);
+    const { program, args } = invocation;
 
     expect(program.toLowerCase()).toContain('cmd');
     expect(args.slice(0, 3)).toEqual(['/d', '/s', '/c']);
+    // Node must not re-quote the command line on its way to CreateProcess; the
+    // quoting is already correct for cmd. Without this the two layers disagree and
+    // cmd reports '`"npm.cmd "pack" ...` is not recognized'.
+    expect(invocation.verbatimArguments).toBe(true);
 
-    // /s consumes exactly one outer quote pair. That pair has to wrap the whole
-    // line: if it wraps an argument instead, the surviving quotes become literal
-    // and the command reports 'Unknown command: ""pack""'.
+    // One outer pair wraps the line; /s consumes it, leaving the command name
+    // bare and each argument in its own quoted region.
     const line = args[3] ?? '';
     expect(line.startsWith('"')).toBe(true);
     expect(line.endsWith('"')).toBe(true);
-
-    // After /s strips it, the command name is bare and each argument keeps its
-    // own quotes.
-    const inner = line.slice(1, -1);
-    expect(inner.startsWith('npm.cmd ')).toBe(true);
-    expect(inner).not.toContain('"npm.cmd"');
-    expect(inner).toBe('npm.cmd "--version"');
+    expect(line.slice(1, -1)).toBe('npm.cmd "--version"');
   });
 
   it('produces the command line cmd.exe actually parses', () => {
@@ -379,5 +377,7 @@ describe('buildInvocation', () => {
     const { args } = buildInvocation('npm.cmd', ['pack', '--dry-run', '--json']);
 
     expect(args[3]).toBe('"npm.cmd "pack" "--dry-run" "--json""');
+    // /s removes that outer pair, leaving what cmd actually tokenises.
+    expect((args[3] ?? '').slice(1, -1)).toBe('npm.cmd "pack" "--dry-run" "--json"');
   });
 });

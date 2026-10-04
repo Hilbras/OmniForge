@@ -101,32 +101,30 @@ export function resolveProgram(command: string): string {
 export function buildInvocation(
   program: string,
   args: readonly string[],
-): { program: string; args: string[] } {
+): { program: string; args: string[]; verbatimArguments?: boolean } {
   if (!needsCommandInterpreter(program)) {
     return { program, args: [...args] };
   }
 
-  // The whole line is wrapped in one pair of quotes, and every argument inside it
-  // is quoted as well. Both are required, and getting either wrong was observed on
-  // the Windows CI runners:
+  // This mirrors what cross-spawn does, which is the only approach to this that
+  // is known to work in practice:
   //
-  //   Inner quotes only — cmd strips the outermost pair, which was one of the
-  //   argument quotes, so the survivors became literal: `npm.cmd "pack"` parsed
-  //   as the command `npm.cmd` with the argument `"pack"` including its quotes,
-  //   and npm reported `Unknown command: ""pack""`.
+  //   - The command line is one quoted string: /s then strips that outer pair and
+  //     leaves the command name bare with each argument in its own quoted region.
+  //   - `windowsVerbatimArguments` stops Node re-quoting the string on its way to
+  //     CreateProcess. Without it Node applies its own quoting rules to a string
+  //     that is already quoted for cmd, and the two layers disagree — which is
+  //     what produced '`"npm.cmd "pack" ...` is not recognized' on the Windows
+  //     runners when /s was used without it.
   //
-  //   Outer quotes only — an argument containing whitespace split into two.
-  //
-  // With the outer pair consumed by /s, each inner pair is what cmd sees as
-  // delimiting one argument, and the command name itself is bare.
-  //
-  // /d skips AutoRun registry entries, which would otherwise execute on every
-  // single invocation.
-  const inner = [program, ...args.map(quoteCmdArgument)].join(' ');
+  // /d skips registry AutoRun entries, which would otherwise execute on every
+  // invocation.
+  const line = [program, ...args.map(quoteCmdArgument)].join(' ');
 
   return {
     program: process.env.ComSpec ?? 'cmd.exe',
-    args: ['/d', '/s', '/c', `"${inner}"`],
+    args: ['/d', '/s', '/c', `"${line}"`],
+    verbatimArguments: true,
   };
 }
 
@@ -226,6 +224,8 @@ export async function execute(
         // Forge built from user input — it receives a fixed argv, and each
         // argument is escaped by quoteCmdArgument below.
         shell: false,
+        // Only set for the cmd.exe path; see buildInvocation.
+        ...(invocation.verbatimArguments === true ? { windowsVerbatimArguments: true } : {}),
         cwd: options.cwd,
         env: options.env === undefined ? process.env : { ...process.env, ...options.env },
         stdio: ['pipe', 'pipe', 'pipe'],
