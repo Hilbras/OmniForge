@@ -54,8 +54,16 @@ Examples:
   $ forge github status
   $ forge github repository
   $ forge github tag --show
-  $ forge github tag --release-version 1.2.3
+  $ forge github tag --release-version 1.2.3 --push
   $ forge github release --release-version 1.2.3
+
+Flags, by subcommand:
+  tag       --release-version <semver> --show --push --yes
+  release   --release-version <semver> --draft --prerelease --notes <text> --yes
+
+Note: there is no --version flag. Commander routes it to the root version
+handler, so \`forge github release --version 1.2.3\` would print the number and
+exit without releasing anything. Use --release-version.
 `,
     );
 

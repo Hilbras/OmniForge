@@ -265,8 +265,16 @@ Examples:
   $ forge github status
   $ forge github repository
   $ forge github tag --show
-  $ forge github tag --release-version 1.2.3
+  $ forge github tag --release-version 1.2.3 --push
   $ forge github release --release-version 1.2.3
+
+Flags, by subcommand:
+  tag       --release-version <semver> --show --push --yes
+  release   --release-version <semver> --draft --prerelease --notes <text> --yes
+
+Note: there is no --version flag. Commander routes it to the root version
+handler, so `forge github release --version 1.2.3` would print the number and
+exit without releasing anything. Use --release-version.
 ```
 
 ## forge github status
@@ -354,7 +362,13 @@ Examples:
   $ forge npm publish --dry-run
   $ forge npm publish --yes
   $ forge npm dist-tag
+  $ forge npm dist-tag --tag next --to 1.3.0-beta.1
   $ forge npm verify --release-version 1.2.3
+
+Flags, by subcommand:
+  publish     --dry-run --yes --tag <tag> --registry <url> --config <path>
+  dist-tag    --tag <tag> --to <version> --remove --yes
+  verify      --release-version <semver> --config <path>
 ```
 
 ## forge npm status
@@ -516,6 +530,10 @@ Examples:
   $ forge version next --minor --prerelease
   $ forge version bump --patch
   $ forge version bump --patch --prerelease --yes
+  $ forge version bump --set 1.0.0-rc.1 --yes    # an exact version
+
+Run `forge version bump --help` for every bump flag: --major, --minor,
+--patch, --prerelease, --set, --yes.
 ```
 
 ## forge version current

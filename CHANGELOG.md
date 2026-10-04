@@ -9,6 +9,37 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [1.0.0-rc.2] — 2026-10-04
+
+Second release candidate. Fixes a discoverability problem found while verifying
+rc.1, which is the kind of thing only a real user hits.
+
+### Fixed
+
+- **Subcommand flags were invisible from the command group.** Commander renders
+  subcommands as `bump [options]` without their flags, so `forge version --help`
+  gave no hint that `--set` existed. Someone looking for an exact-version command
+  would read `bump [options]`, try `forge version set`, get "unknown command", and
+  conclude Forge cannot do it.
+
+  The group help for `version`, `npm`, `github`, and `pypi` now lists every flag
+  per subcommand. A test walks the CLI's own help output and fails the build when
+  any subcommand declares a flag its parent does not mention — otherwise this
+  regresses the next time a flag is added.
+
+- **`forge github --help` did not warn about `--version`.** The group help now
+  states plainly that there is no `--version` flag and why, since
+  `forge github release --version 1.2.3` prints the number and exits without
+  releasing anything.
+
+### Notes
+
+- 841 tests passing, up from 833. Lint, format, typecheck, build, and the generated
+  CLI reference all clean; 0 vulnerabilities.
+
+- Still unverified: a real PyPI upload. Unchanged from rc.1. See that release's
+  notes.
+
 ## [1.0.0-rc.1] — 2026-10-04
 
 Release candidate for v1.0.0. All 17 phases of the plan are implemented; this RC
@@ -711,6 +742,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[1.0.0-rc.2]: https://github.com/Hilbras/hilbras-forge/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.10.0...v1.0.0-rc.1
 [0.10.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.1...v0.9.2

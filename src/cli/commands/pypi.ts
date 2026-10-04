@@ -58,6 +58,12 @@ Examples:
   $ forge pypi build
   $ forge pypi publish --dry-run
   $ forge pypi verify --release-version 1.0.0
+
+Flags, by subcommand:
+  status    --config <path>
+  build     --config <path>
+  publish   --release-version <semver> --config <path> --dry-run --yes
+  verify    --release-version <semver> --config <path>
 `,
     );
 

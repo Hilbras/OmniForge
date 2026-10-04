@@ -56,7 +56,13 @@ Examples:
   $ forge npm publish --dry-run
   $ forge npm publish --yes
   $ forge npm dist-tag
+  $ forge npm dist-tag --tag next --to 1.3.0-beta.1
   $ forge npm verify --release-version 1.2.3
+
+Flags, by subcommand:
+  publish     --dry-run --yes --tag <tag> --registry <url> --config <path>
+  dist-tag    --tag <tag> --to <version> --remove --yes
+  verify      --release-version <semver> --config <path>
 `,
     );
 

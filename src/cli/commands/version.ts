@@ -57,6 +57,10 @@ Examples:
   $ forge version next --minor --prerelease
   $ forge version bump --patch
   $ forge version bump --patch --prerelease --yes
+  $ forge version bump --set 1.0.0-rc.1 --yes    # an exact version
+
+Run \`forge version bump --help\` for every bump flag: --major, --minor,
+--patch, --prerelease, --set, --yes.
 `,
     );
 
