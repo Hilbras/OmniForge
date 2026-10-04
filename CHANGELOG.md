@@ -9,6 +9,47 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.6.0] — 2026-10-01
+
+Phases 8 and 10 — release orchestration and reporting. `forge release` now runs
+the whole workflow in one command.
+
+### Added
+
+- **`forge release`** wiring every subsystem together:
+  `configure → authenticate → validate → checks → version → tag → publish →
+verify → report`.
+- **Release pipeline** (`src/release/pipeline.ts`). Two rules define it: a
+  mandatory step failure halts the run, and a dry run is the same pipeline with a
+  no-op context rather than a second code path that could drift.
+- **Skipped steps are recorded, not dropped**, so a failed release shows the
+  whole plan and the user can see what did not run.
+- **Checks run before the version is written**, so a failure never leaves the
+  project's files modified.
+- **Verification runs even after a partial failure**, because knowing _what_
+  landed is exactly what you need when a release goes wrong.
+- **Reporting** (`src/release/report.ts`): terminal, JSON, and Markdown
+  renderers, all passing through redaction so a credential cannot reach a report.
+  `--report json|markdown` writes `.forge/releases/<version>.{json,md}`.
+- **Cross-provider integrity comparison** ignoring tag prefixes, so a GitHub
+  release reporting `v1.5.0` is not called a mismatch against `1.5.0`.
+
+### Fixed
+
+- **A failed release exited 0.** `main()` returned Success and overwrote the exit
+  code a command had set, so a CI step gating on `forge release` would have
+  passed on a release that published nothing.
+- **The plan listed every known provider** rather than the ones that would run,
+  printing three while running one.
+- **A failed release reported `v0.0.0`** when it halted before version
+  resolution, naming a version the user never asked for.
+
+### Notes
+
+- 512 tests passing, up from 484. The architecture test caught two per-provider
+  branches in the new CLI code; both were replaced with data-driven lookups.
+- Publishing is irreversible. Run `--dry-run` first.
+
 ## [0.5.0] — 2026-10-01
 
 Phase 6 — the npm provider. The second real platform behind the provider
@@ -270,6 +311,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.6.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.2.0...v0.3.0

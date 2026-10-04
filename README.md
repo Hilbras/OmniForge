@@ -11,8 +11,9 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.5.0 — npm provider.** GitHub and npm are both implemented and
-> tested; PyPI and the `forge release` command land in later phases. See
+> **Status: v0.6.0 — release orchestration.** `forge release` runs the whole
+> workflow: validate → check → version → tag → publish → verify → report. GitHub
+> and npm are both implemented; PyPI is pending credentials. See
 > [Roadmap](#roadmap).
 
 ---
@@ -126,6 +127,44 @@ progress.
 A mandatory check that fails **halts the release** — later checks are recorded as
 skipped and nothing is published. Mark a check `optional: true` to record its
 failure without stopping.
+
+---
+
+## Releasing
+
+```bash
+forge release --dry-run            # see the plan, change nothing
+forge release --patch              # the real thing
+forge release --minor --prerelease
+forge release 1.4.0                # an exact version
+forge release --provider npm       # one provider only
+forge release --patch --report json
+```
+
+The workflow:
+
+```text
+configure → authenticate → validate → checks → version → tag
+          → publish each provider → verify → report
+```
+
+**A failing mandatory check halts the run.** Nothing is tagged, nothing is
+published, and the steps that were skipped are listed so you can see what did
+not run. Checks run _before_ the version is written, so a failure never leaves
+your files modified.
+
+A failed release exits non-zero, so a CI step gating on `forge release` cannot
+pass on a release that published nothing.
+
+`--dry-run` changes nothing — no tag, no push, no publish, no file write — while
+still showing the full plan. It does invoke each provider's dry-run path, because
+that is what actually validates the pack (`npm publish --dry-run` really packs
+and reports the file list).
+
+`--report json|markdown` writes `.forge/releases/<version>.{json,md}`.
+
+> **Publishing is irreversible on npm and PyPI.** Run `--dry-run` first, and try
+> a throwaway package before your first real release.
 
 ---
 

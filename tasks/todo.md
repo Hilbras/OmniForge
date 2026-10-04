@@ -4,20 +4,20 @@ Plan: [plan.md](./plan.md) · Milestone M1 = Phase 0 → `0.1.0`
 
 ## Phase 0 — Foundation
 
-- [ ] Task 1: Repo scaffolding — package.json, tsconfig, eslint, vitest, .gitignore, LICENSE, CI workflow. Verify: `npm run build && npm test`.
-- [ ] Task 2: Module boundaries — typed empty modules for core/providers/release/version/build/verification/configuration/authentication/reporting/errors/utils + architecture test. Verify: test asserts no provider literals in core.
-- [ ] Task 3: CLI skeleton — `forge --help`, `forge --version`. Verify: both run from `dist/cli/index.js`.
+- [x] Task 1: Repo scaffolding — package.json, tsconfig, eslint, vitest, .gitignore, LICENSE, CI workflow. Verify: `npm run build && npm test`.
+- [x] Task 2: Module boundaries — typed empty modules for core/providers/release/version/build/verification/configuration/authentication/reporting/errors/utils + architecture test. Verify: test asserts no provider literals in core.
+- [x] Task 3: CLI skeleton — `forge --help`, `forge --version`. Verify: both run from `dist/cli/index.js`.
 
 ### Checkpoint: Foundation
 
-- [ ] Build clean, tests green, `forge --version` prints `0.1.0`.
+- [x] Build clean, tests green, `forge --version` prints `0.1.0`.
 
 ## Phase 1 — Configuration
 
-- [ ] Task 4: `forge.config.yaml` schema + loader + upward discovery.
-- [ ] Task 5: Validation with precise errors (path, expected, received) + defaults.
-- [ ] Task 6: Env-var credential resolution + `redact()`.
-- [ ] Task 7: CLI overrides + `forge config show|validate`.
+- [x] Task 4: `forge.config.yaml` schema + loader + upward discovery.
+- [x] Task 5: Validation with precise errors (path, expected, received) + defaults.
+- [x] Task 6: Env-var credential resolution + `redact()`.
+- [x] Task 7: CLI overrides + `forge config show|validate`.
 
 ### Checkpoint: Configuration
 
@@ -25,9 +25,9 @@ Plan: [plan.md](./plan.md) · Milestone M1 = Phase 0 → `0.1.0`
 
 ## Phase 2 — Provider System
 
-- [ ] Task 8: `Provider` interface + capabilities descriptor.
-- [ ] Task 9: `ProviderRegistry` — register, discover, validate names, capabilities.
-- [ ] Task 10: Lifecycle (load → authenticate → validate → execute → verify) with error isolation.
+- [x] Task 8: `Provider` interface + capabilities descriptor.
+- [x] Task 9: `ProviderRegistry` — register, discover, validate names, capabilities.
+- [x] Task 10: Lifecycle (load → authenticate → validate → execute → verify) with error isolation.
 - [ ] Task 11: `forge provider list|capabilities`.
 
 ### Checkpoint: Providers
@@ -36,34 +36,34 @@ Plan: [plan.md](./plan.md) · Milestone M1 = Phase 0 → `0.1.0`
 
 ## Phase 3 — GitHub Provider
 
-- [ ] Task 12: Auth via `gh auth token` / `GITHUB_TOKEN`; never echo token.
-- [ ] Task 13: Repository detect/validate + default branch + working-tree state.
-- [ ] Task 14: Tag create/validate/detect-existing.
-- [ ] Task 15: Release create — draft, prerelease, notes.
-- [ ] Task 16: Release-notes generator from CHANGELOG.
-- [ ] Task 17: `forge github status|repository|tag|release`.
+- [x] Task 12: Auth via `gh auth token` / `GITHUB_TOKEN`; never echo token.
+- [x] Task 13: Repository detect/validate + default branch + working-tree state.
+- [x] Task 14: Tag create/validate/detect-existing.
+- [x] Task 15: Release create — draft, prerelease, notes.
+- [x] Task 16: Release-notes generator from CHANGELOG.
+- [x] Task 17: `forge github status|repository|tag|release`.
 
 ### Checkpoint: GitHub
 
-- [ ] Tag + release create on scratch repo; duplicate detected, not overwritten.
+- [x] Tag + release create on a real repo; duplicate detected, not overwritten.
 
 ## Phase 4 — Version Management
 
-- [ ] Task 18: Semver parse/bump/validate incl. prereleases.
-- [ ] Task 19: Sources — package.json, pyproject.toml, configured.
-- [ ] Task 20: Cross-provider version consistency check.
-- [ ] Task 21: `forge version current|next|bump`.
+- [x] Task 18: Semver parse/bump/validate incl. prereleases.
+- [x] Task 19: Sources — package.json, pyproject.toml, configured.
+- [x] Task 20: Cross-provider version consistency check.
+- [x] Task 21: `forge version current|next|bump`.
 
 ### Checkpoint: Versioning
 
-- [ ] All sources round-trip; `2.3.4-rc.1` bumps right; mismatch reported.
+- [x] All sources round-trip; `2.3.4-rc.1` bumps right; mismatch reported.
 
 ## Phase 5 — Check & Build Engine
 
-- [ ] Task 22: Check runner — stdout/stderr/exit capture, timeout, duration.
-- [ ] Task 23: Mandatory vs optional policy; mandatory failure halts release.
-- [ ] Task 24: Hardened exec helper — array args, no shell interpolation.
-- [ ] Task 25: `forge check|test|build`.
+- [x] Task 22: Check runner — stdout/stderr/exit capture, timeout, duration.
+- [x] Task 23: Mandatory vs optional policy; mandatory failure halts release.
+- [x] Task 24: Hardened exec helper — array args, no shell interpolation.
+- [x] Task 25: `forge check|test|build`.
 
 ### Checkpoint: Checks
 
@@ -71,16 +71,16 @@ Plan: [plan.md](./plan.md) · Milestone M1 = Phase 0 → `0.1.0`
 
 ## Phase 6 — npm Provider
 
-- [ ] Task 26: npm auth + package detect.
-- [ ] Task 27: Package validation.
-- [ ] Task 28: Publish + dist-tag.
-- [ ] Task 29: Verify — package, version, metadata, dist-tag.
-- [ ] Task 30: `forge npm status|package|publish|verify`.
-- [ ] Task 31: Normalize npm errors (403 already-exists → duplicate release).
+- [x] Task 26: npm auth + package detect.
+- [x] Task 27: Package validation.
+- [x] Task 28: Publish + dist-tag.
+- [x] Task 29: Verify — package, version, metadata, dist-tag.
+- [x] Task 30: `forge npm status|package|publish|verify`.
+- [x] Task 31: Normalize npm errors (403 already-exists → duplicate release).
 
 ### Checkpoint: npm
 
-- [ ] Publish a real `@hilbras/forge` version and verify via registry API.
+- [x] Publish a real `@hilbras/forge` version and verify via the registry API.
 
 ## Phase 7 — PyPI Provider
 
@@ -93,7 +93,7 @@ Plan: [plan.md](./plan.md) · Milestone M1 = Phase 0 → `0.1.0`
 
 ### Checkpoint: PyPI
 
-- [ ] Unit + fixture tests green. Live publish blocked until a PyPI token exists.
+- [ ] Unit + fixture tests green. **Blocked**: no `PYPI_TOKEN` configured.
 
 ## Phase 8 — Release Orchestration
 

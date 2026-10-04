@@ -25,6 +25,7 @@ import {
 import { registerConfigCommand } from './commands/config.js';
 import { registerGitHubCommand } from './commands/github.js';
 import { registerNpmCommand } from './commands/npm.js';
+import { registerReleaseCommand } from './commands/release.js';
 import { registerVersionCommand } from './commands/version.js';
 import { registerCheckCommand } from './commands/check.js';
 import { ExitCode, exitCodeFor } from './exit-codes.js';
@@ -143,6 +144,13 @@ export function buildProgram(term: TerminalConsole = buildConsole()): Command {
     palette: term.palette,
     confirm: askYesNo,
   });
+  registerReleaseCommand(program, {
+    write: (text) => process.stdout.write(text),
+    writeError: (text) => process.stderr.write(text),
+    env: process.env,
+    palette: term.palette,
+    confirm: askYesNo,
+  });
   registerVersionCommand(program, {
     write: (text) => process.stdout.write(text),
     writeError: (text) => process.stderr.write(text),
@@ -215,7 +223,14 @@ export function reportFatalError(
   return exitCodeFor(forgeError.code);
 }
 
-/** Parse argv and run. Returns the process exit code. */
+/**
+ * Parse argv and run. Returns the process exit code.
+ *
+ * A command that fails without throwing sets `process.exitCode`; that value is
+ * honoured below rather than overwritten with Success. `process.exitCode` is the
+ * only channel a commander action has for signalling failure, so it must be read
+ * rather than discarded.
+ */
 export async function main(argv: readonly string[] = process.argv): Promise<number> {
   const term = buildConsole();
   const program = buildProgram(term);
@@ -223,7 +238,12 @@ export async function main(argv: readonly string[] = process.argv): Promise<numb
 
   try {
     await program.parseAsync([...argv]);
-    return ExitCode.Success;
+    // A command may have set `process.exitCode` to report a failure without
+    // throwing — `forge release` does this when a mandatory step fails. Returning
+    // Success here would overwrite it and exit 0 on a failed release, so the
+    // command's value wins whenever it is non-zero.
+    const set = process.exitCode;
+    return typeof set === 'number' && set !== ExitCode.Success ? set : ExitCode.Success;
   } catch (error) {
     // Commander's own errors (unknown command, bad flag) already printed a message.
     if (error instanceof CommanderError) {
