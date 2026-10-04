@@ -88,6 +88,8 @@ Examples:
       if (flags['prerelease'] === true) bumps.push('prerelease');
 
       const dryRun = flags['dryRun'] === true;
+      // Set during a dry run and restored afterwards; see writeVersion below.
+      let restoreVersion: string | null = null;
       const providers = Array.isArray(flags['provider'])
         ? (flags['provider'] as string[])
         : undefined;
@@ -108,44 +110,66 @@ Examples:
       const push = flags['push'] !== false;
       const secrets = collectSecrets(deps.env);
 
-      const result = await runRelease(
-        config,
-        {
-          bumps,
-          version: explicitVersion,
-          dryRun,
-          only: providers,
-          yes: flags['yes'] === true,
-        },
-        {
-          registry,
-          // Synchronous implementations behind an async interface: the pipeline
-          // is written against promises so a provider or config source that is
-          // genuinely async needs no change here.
-          contextFor: (isDryRun) => Promise.resolve(contextFor(config, deps.env, isDryRun)),
-          currentVersion: () => Promise.resolve(readVersionState(config).current),
-          writeVersion: (version) => writeVersion(config, version).then(() => undefined),
-          computeNext: (strategies) => Promise.resolve(nextVersion(config, strategies)),
-          createTag: async (tag, message) => {
-            await createTag(config.projectRoot, tag, message);
-            if (push) await pushTag(config.projectRoot, tag);
+      // Restored in a `finally`, so a step that throws mid-run cannot leave the
+      // working tree with a bumped version that was never released.
+      let result: ReleaseResult;
+      try {
+        result = await runRelease(
+          config,
+          {
+            bumps,
+            version: explicitVersion,
+            dryRun,
+            only: providers,
+            yes: flags['yes'] === true,
           },
-          runChecks: async () => {
-            const outcome = await runChecks(config, {
-              onFinish: (stepResult) => {
-                if (!stepResult.passed && !stepResult.skipped) {
-                  deps.writeError(`${Symbols.fail} ${stepResult.name} ${stepResult.exitCode}\n`);
-                }
-              },
-            });
-            assertChecksPassed(outcome, 'release.checks');
+          {
+            registry,
+            // Synchronous implementations behind an async interface: the pipeline
+            // is written against promises so a provider or config source that is
+            // genuinely async needs no change here.
+            contextFor: (isDryRun) => Promise.resolve(contextFor(config, deps.env, isDryRun)),
+            currentVersion: () => Promise.resolve(readVersionState(config).current),
+            // During a dry run the version is written and then restored.
+            //
+            // Without this, `npm publish --dry-run` packs the *current*
+            // package.json, sees a version already on npm, and fails a rehearsal
+            // that has not actually tried to publish anything. Writing the version
+            // first is what makes the dry run honest: npm packs exactly the
+            // tarball the real release would upload, and the restore leaves the
+            // working tree as it was found.
+            writeVersion: async (version) => {
+              const original = readVersionState(config).current;
+              await writeVersion(config, version);
+              if (dryRun) restoreVersion = original;
+            },
+            computeNext: (strategies) => Promise.resolve(nextVersion(config, strategies)),
+            createTag: async (tag, message) => {
+              await createTag(config.projectRoot, tag, message);
+              if (push) await pushTag(config.projectRoot, tag);
+            },
+            runChecks: async () => {
+              const outcome = await runChecks(config, {
+                onFinish: (stepResult) => {
+                  if (!stepResult.passed && !stepResult.skipped) {
+                    deps.writeError(`${Symbols.fail} ${stepResult.name} ${stepResult.exitCode}\n`);
+                  }
+                },
+              });
+              assertChecksPassed(outcome, 'release.checks');
+            },
+            providersFor: (cfg, only) => providersFor(cfg, only),
+            isPrerelease: (version) => isPrerelease(version),
+            confirm: deps.confirm,
+            onStep: (step) => reportStep(c, step),
           },
-          providersFor: (cfg, only) => providersFor(cfg, only),
-          isPrerelease: (version) => isPrerelease(version),
-          confirm: deps.confirm,
-          onStep: (step) => reportStep(c, step),
-        },
-      );
+        );
+      } finally {
+        if (restoreVersion !== null) {
+          await writeVersion(config, restoreVersion);
+          restoreVersion = null;
+        }
+      }
 
       c.blank();
       deps.write(render(result, 'terminal', secrets));

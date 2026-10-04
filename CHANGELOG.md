@@ -9,6 +9,71 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [1.0.0-rc.1] — 2026-10-04
+
+Release candidate for v1.0.0. All 17 phases of the plan are implemented; this RC
+names what is still unverified rather than claiming otherwise.
+
+### What this release is
+
+Every capability the roadmap specifies, working end to end:
+
+| Phase                  | Status                   |
+| ---------------------- | ------------------------ |
+| 0–6, 8–14              | Shipped in 0.1.0 – 0.9.6 |
+| 7 — PyPI provider      | Shipped in 0.10.0        |
+| 15 — Release candidate | This release             |
+
+- `forge init` generates a working config from your project
+- `forge release` runs configure → authenticate → validate → check → version →
+  tag → publish → verify → report
+- `forge verify` confirms every provider agrees on one version
+- 833 tests, coverage thresholds that fail the build, a CLI reference generated
+  from the binary
+
+### Fixed in this RC
+
+Found by rehearsing the release end to end, which is what an RC is for.
+
+- **A dry run skipped writing the version**, so `npm publish --dry-run` packed the
+  _current_ `package.json`, found that version already on the registry, and failed
+  a rehearsal that had published nothing. The version is now written and then
+  restored in a `finally`, so the rehearsal packs exactly the tarball the real
+  release would upload and the working tree ends up byte-identical. Verified: exit
+  0, `package.json` unchanged, git tree unchanged.
+
+- **Forge blamed the wrong version for a duplicate.** npm says "You cannot
+  publish over the previously published versions: 0.10.0"; Forge substituted its
+  own intended version and reported "0.10.1 is already published", sending the
+  user to bump a version that was never the problem. It now reports the version
+  npm named, and says explicitly when `package.json` disagrees with what the
+  release intended.
+
+### Not verified
+
+**A real PyPI upload has not been performed.** The credentials in `~/.pypirc`
+could not be confirmed from this environment: `upload.pypi.org` is intercepted by
+a proxy that answers 405 to both a valid and an invalid token, so the two are
+indistinguishable. Everything else in the PyPI path _is_ verified — a real sdist
+and wheel were built, `twine check` passed both, and live verification against
+PyPI passes all five checks for a real release.
+
+`~/.pypirc` exists with a token; whether it is valid and scoped to a project is
+unknown here. **Do the first real PyPI publish with a throwaway project name.**
+
+### Verified for this release
+
+| Check                             | Result                                                     |
+| --------------------------------- | ---------------------------------------------------------- |
+| Tests                             | 833 passing                                                |
+| Lint / format / typecheck / build | clean                                                      |
+| `npm audit`                       | 0 vulnerabilities                                          |
+| Coverage thresholds               | met                                                        |
+| CLI docs                          | current                                                    |
+| Node matrix                       | 22.12, 24, 26 × Linux, macOS, Windows                      |
+| `forge release --dry-run`         | exit 0, both providers rehearsed, tree unchanged           |
+| npm tarball                       | 1.0.0-rc.1 verified by `npm publish --dry-run`, tag `next` |
+
 ## [0.10.0] — 2026-10-04
 
 Phase 7 — PyPI provider. The last unimplemented phase.
@@ -646,6 +711,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[1.0.0-rc.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.10.0...v1.0.0-rc.1
 [0.10.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.2...v0.10.0
 [0.9.2]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.9.0...v0.9.1

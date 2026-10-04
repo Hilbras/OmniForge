@@ -87,6 +87,14 @@ export interface PipelineDeps {
   readonly currentVersion: () => Promise<string>;
   /** Writes a new version to every configured source. */
   readonly writeVersion: (version: string) => Promise<void>;
+  /**
+   * Whether a dry run may skip writing the version.
+   *
+   * Defaults to false, because writing is what lets a dry run validate the real
+   * pack — `npm publish --dry-run` reads package.json. Set true only when the
+   * caller has no way to restore the file afterwards.
+   */
+  readonly dryRunCanSkipWrite?: boolean;
   /** Computes the next version from strategies. */
   readonly computeNext: (strategies: readonly BumpStrategy[]) => Promise<string>;
   /** Creates and pushes the git tag. */
@@ -350,12 +358,22 @@ export async function runRelease(
   // ---- Step 6: write the version -----------------------------------------
   if (!halted && version !== previousVersion) {
     await mandatory('write-version', undefined, async () => {
-      // The write is the pipeline's own side effect, so the dry-run guard lives
-      // here. Provider publishes are different: those are delegated, because a
-      // provider's dry-run path is what actually validates its pack.
-      if (request.dryRun) return `would write ${version}`;
+      // The version is written even during a dry run, because everything after
+      // this step reads it: `npm publish --dry-run` packs package.json, so
+      // skipping the write makes npm pack the *current* version, find it already
+      // on the registry, and fail a rehearsal that has published nothing. The
+      // CLI restores the original afterwards, in a `finally`, so the working tree
+      // ends up unchanged either way.
+      //
+      // A caller that cannot safely write — a library consumer with no restore
+      // step — opts out via `dryRunCanSkipWrite`.
+      if (request.dryRun && deps.dryRunCanSkipWrite === true) {
+        return `would write ${version}`;
+      }
       await deps.writeVersion(version);
-      return `wrote ${version}`;
+      return request.dryRun
+        ? `wrote ${version} for the rehearsal, then restored it`
+        : `wrote ${version}`;
     });
   }
 

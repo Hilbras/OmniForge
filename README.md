@@ -40,7 +40,7 @@ fails the build if Core imports a provider or branches on a platform name.
 
 ## Install
 
-Requires Node.js >= 22.12. The minor matters: `commander` needs `>=22.12.0` and
+Requires Node.js >= 22.12.12. The minor matters: `commander` needs `>=22.12.0` and
 vitest needs `^22.12.0`. CI tests 22.12, 24, and 26 on all three platforms.
 
 ```bash

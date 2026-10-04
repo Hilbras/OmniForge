@@ -313,13 +313,36 @@ export function normalizePublishError(name: string, version: string, output: str
     text.includes('e409') ||
     text.includes('you cannot publish')
   ) {
-    return new DuplicateReleaseError(`${name}@${version} is already published.`, {
-      provider: 'npm',
-      operation: 'npm.publish',
-      remediation:
-        'npm does not allow overwriting a version. Choose a higher one, or unpublish first if you are certain.',
-      detail: { package: name, version },
-    });
+    // Use the version *npm named*, not the one we intended to publish.
+    //
+    // npm says "You cannot publish over the previously published versions:
+    // 0.10.0" — and it is right: `npm publish` only ever publishes whatever
+    // version is in package.json, which may not be the version the release
+    // pipeline calculated. Substituting our own number produces "0.10.1 is
+    // already published" when the truth is "package.json still says 0.10.0 and
+    // you already published that" — which sends the user to bump a version that
+    // was never the problem.
+    // Trailing punctuation trimmed: npm ends the sentence with a period, and
+    // keeping it produces "@acme/sdk@1.0.0. is already published".
+    const named = /previously published versions:?\s*([0-9][^\s,]*)/i
+      .exec(output)?.[1]
+      ?.replace(/[.,;]+$/, '');
+    const conflicting = named ?? version;
+    const mismatch = named !== undefined && named !== version;
+
+    return new DuplicateReleaseError(
+      mismatch
+        ? `${name}@${conflicting} is already published. package.json still says ${conflicting}, not the ${version} this release intended.`
+        : `${name}@${conflicting} is already published.`,
+      {
+        provider: 'npm',
+        operation: 'npm.publish',
+        remediation: mismatch
+          ? `\`npm publish\` only publishes the version in package.json, which is ${conflicting} rather than the ${version} this release intended. Run \`forge version bump\` first, or check that the version was written before publishing.`
+          : 'npm does not allow overwriting a version. Choose a higher one, or unpublish first if you are certain.',
+        detail: { package: name, intended: version, conflicting },
+      },
+    );
   }
 
   // npm puts the error code on its own line, separate from the prose message, so

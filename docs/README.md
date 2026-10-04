@@ -56,3 +56,11 @@ npm run docs:check      # fail if it is stale (CI does this)
 
 Help text drifts silently otherwise: a flag is added, nobody updates the prose,
 and the docs become wrong in a way nothing catches.
+
+## Known gap
+
+A real PyPI upload has not been performed. The credentials in `~/.pypirc` cannot be
+confirmed from an environment whose proxy intercepts `upload.pypi.org`, and it
+answers identically to valid and invalid credentials. Everything up to the upload is
+tested — a real sdist and wheel are built, `twine check` passes both, and live
+verification works. Use a throwaway project name for the first publish.

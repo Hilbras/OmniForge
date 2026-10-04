@@ -376,12 +376,40 @@ describe('runRelease — dry run', () => {
     );
 
     expect(result.outcome).toBe('dry-run');
-    expect(writeCalled).toBe(false);
+    // The tag is still not created — that is an irreversible git operation.
     expect(tagCalled).toBe(false);
+    // The version IS written, because `npm publish --dry-run` packs
+    // package.json: skipping the write makes npm pack the current version, find it
+    // already on the registry, and fail a rehearsal that published nothing. The
+    // CLI restores it afterwards.
+    expect(writeCalled).toBe(true);
+    expect(result.steps.find((s) => s.step === 'write-version')?.detail).toMatch(
+      /wrote 1\.0\.1 for the rehearsal/,
+    );
     // The provider IS called — that is how a dry run validates the pack — but
     // it reports published=false and mutates nothing.
     expect(fake.published).toEqual([]);
     expect(result.steps.find((s) => s.step === 'publish')?.status).toBe('passed');
+  });
+
+  it('lets a caller opt out of writing during a dry run', async () => {
+    // For a library consumer with no restore step. The default is to write.
+    const registry = registryWith([{ name: 'github' }]);
+    let writeCalled = false;
+
+    await runRelease(
+      configWith(['github']),
+      { bumps: ['patch'], dryRun: true, yes: true },
+      depsFor(registry, {
+        dryRunCanSkipWrite: true,
+        writeVersion: () => {
+          writeCalled = true;
+          return Promise.resolve();
+        },
+      }),
+    );
+
+    expect(writeCalled).toBe(false);
   });
 
   it('still reports what it would do', async () => {
@@ -395,7 +423,9 @@ describe('runRelease — dry run', () => {
     // A dry run must be informative: the user reads this to decide whether the
     // real release is safe.
     const byStep = new Map(result.steps.map((s) => [s.step, s.detail]));
-    expect(byStep.get('write-version')).toBe('would write 1.0.1');
+    // Says plainly that the file was written and then put back, so nobody reads a
+    // dry run as having left the working tree dirty.
+    expect(byStep.get('write-version')).toBe('wrote 1.0.1 for the rehearsal, then restored it');
     expect(byStep.get('tag')).toBe('would create v1.0.1');
     expect(byStep.get('publish')).toContain('would publish');
   });

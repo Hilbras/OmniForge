@@ -52,6 +52,59 @@ describe('normalizePublishError', () => {
 
       expect(error.remediation).toMatch(/does not allow overwriting|higher one/i);
     });
+
+    it('reports the version npm named, not the one we intended', () => {
+      // Found by running a release against a package.json that had not been
+      // bumped. npm objected to 0.10.0; Forge said "0.10.1 is already published",
+      // which sends the user to bump a version that was never the problem.
+      const error = normalizePublishError(
+        '@hilbras/forge',
+        '0.10.1',
+        'npm error You cannot publish over the previously published versions: 0.10.0.',
+      );
+
+      expect(error.message).toContain('0.10.0');
+      expect(error.message).not.toContain('0.10.1 is already published');
+    });
+
+    it('says package.json disagrees with the intended version', () => {
+      const error = normalizePublishError(
+        '@hilbras/forge',
+        '0.10.1',
+        'You cannot publish over the previously published versions: 0.10.0.',
+      );
+
+      expect(error.message).toMatch(/package\.json still says 0\.10\.0/);
+      expect(error.remediation).toMatch(/forge version bump/);
+    });
+
+    it('records both versions in the detail', () => {
+      const error = normalizePublishError(
+        '@hilbras/forge',
+        '0.10.1',
+        'previously published versions: 0.10.0',
+      );
+
+      expect(error.detail).toMatchObject({ intended: '0.10.1', conflicting: '0.10.0' });
+    });
+
+    it('does not claim a mismatch when npm named the intended version', () => {
+      const error = normalizePublishError(
+        '@acme/sdk',
+        '1.0.0',
+        'You cannot publish over the previously published versions: 1.0.0.',
+      );
+
+      expect(error.message).toContain('@acme/sdk@1.0.0 is already published.');
+      expect(error.message).not.toMatch(/package\.json still says/);
+      expect(error.remediation).toMatch(/does not allow overwriting/i);
+    });
+
+    it('falls back to the intended version when npm names none', () => {
+      const error = normalizePublishError('@acme/sdk', '1.0.0', 'npm error code E409');
+
+      expect(error.message).toContain('@acme/sdk@1.0.0');
+    });
   });
 
   describe('an auth failure is an auth failure', () => {
