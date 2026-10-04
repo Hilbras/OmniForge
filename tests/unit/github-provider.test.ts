@@ -205,8 +205,8 @@ describe('GitHubProvider.publish', () => {
 
   it('creates a release and returns its URL', async () => {
     const ctx = makeContext({
-      'git/ref/tags/': { exitCode: 1 }, // tag absent
-      'releases/tags/': { exitCode: 1 }, // no existing release
+      'git/ref/tags/': { exitCode: 1, stderr: 'HTTP 404: Not Found' }, // tag absent
+      'releases/tags/': { exitCode: 1, stderr: 'HTTP 404: Not Found' }, // no existing release
       '--method': { stdout: RELEASE },
     });
 
@@ -226,7 +226,7 @@ describe('GitHubProvider.publish', () => {
 
   it('refuses when a release already exists for the tag', async () => {
     const ctx = makeContext({
-      'git/ref/tags/': { exitCode: 1 },
+      'git/ref/tags/': { exitCode: 1, stderr: 'HTTP 404: Not Found' },
       'releases/tags/v1.0.0': { stdout: RELEASE },
     });
 
@@ -249,7 +249,10 @@ describe('GitHubProvider.publish', () => {
 
   it('uses the configured tag prefix', async () => {
     const calls: string[][] = [];
-    const ctx = makeContext({ 'git/ref/tags/': { exitCode: 1 }, '--method': { stdout: RELEASE } });
+    const ctx = makeContext({
+      'git/ref/tags/': { exitCode: 1, stderr: 'HTTP 404: Not Found' },
+      '--method': { stdout: RELEASE },
+    });
     // Record the args, then delegate to the original stub. The original is
     // captured first: `ctx.execute` is the same object whose `run` is being
     // replaced, so delegating to `ctx.execute.run` would call this wrapper.
@@ -288,7 +291,7 @@ describe('GitHubProvider.verify', () => {
   it('fails when the release is missing', async () => {
     const ctx = makeContext({
       'git/ref/tags/v1.0.0': { stdout: '{"ref":"refs/tags/v1.0.0"}' },
-      'releases/tags/v1.0.0': { exitCode: 1 },
+      'releases/tags/v1.0.0': { exitCode: 1, stderr: 'HTTP 404: Not Found' },
     });
 
     const result = await new GitHubProvider().verify(ctx, '1.0.0');
@@ -299,8 +302,8 @@ describe('GitHubProvider.verify', () => {
 
   it('fails when the tag is missing', async () => {
     const ctx = makeContext({
-      'git/ref/tags/v1.0.0': { exitCode: 1 },
-      'releases/tags/v1.0.0': { exitCode: 1 },
+      'git/ref/tags/v1.0.0': { exitCode: 1, stderr: 'HTTP 404: Not Found' },
+      'releases/tags/v1.0.0': { exitCode: 1, stderr: 'HTTP 404: Not Found' },
     });
 
     const result = await new GitHubProvider().verify(ctx, '1.0.0');

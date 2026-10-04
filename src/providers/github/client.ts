@@ -196,7 +196,15 @@ export async function listTags(
   }
 }
 
-/** True when a tag exists in the remote repository. */
+/**
+ * True when a tag exists in the remote repository.
+ *
+ * A 404 is the normal "no such tag" answer. Any other failure — 401, 403, a
+ * network error, a timeout — means the question was never answered, and
+ * collapsing those into `false` would report a perfectly good release as missing.
+ * That distinction matters more than it looks: the integrity check tells users to
+ * re-publish or roll back, and "your token is invalid" is the opposite advice.
+ */
 export async function tagExistsRemote(
   fullName: string,
   tag: string,
@@ -206,7 +214,39 @@ export async function tagExistsRemote(
     cwd: options.cwd,
     env: authEnv(options.token),
   });
-  return result.exitCode === 0;
+
+  if (result.exitCode === 0) return true;
+
+  // 404 is the only answer that legitimately means "absent".
+  if (ghHttpStatus(result.stderr) === 404 || ghHttpStatus(result.stdout) === 404) return false;
+
+  const { AuthError, ForgeError } = await import('../../errors/index.js');
+  const status = ghHttpStatus(result.stderr) ?? ghHttpStatus(result.stdout);
+
+  if (status === 401 || status === 403) {
+    throw new AuthError(
+      ErrorCode.AUTH_FAILED,
+      `Could not read ${fullName} — the token was rejected.`,
+      {
+        provider: 'github',
+        operation: 'github.tagExists',
+        remediation:
+          'Run `gh auth status`. An expired or invalid token cannot distinguish a missing tag from a failed read.',
+        detail: { repository: fullName, tag, status },
+      },
+    );
+  }
+
+  throw new ForgeError(
+    ErrorCode.PROVIDER_FAILED,
+    `Could not check whether ${tag} exists on ${fullName}.`,
+    {
+      provider: 'github',
+      operation: 'github.tagExists',
+      remediation: 'Check network access to api.github.com, then retry.',
+      detail: { repository: fullName, tag, status, exitCode: result.exitCode },
+    },
+  );
 }
 
 /** Fetch one release by tag, or null when it does not exist. */
@@ -220,8 +260,34 @@ export async function getRelease(
     env: authEnv(options.token),
   });
 
-  // A missing release is a normal state, not an error.
-  if (result.exitCode !== 0) return null;
+  // A missing release is a normal state — but only a 404 says so. See
+  // tagExistsRemote for why every other status must not be read as "absent".
+  if (result.exitCode !== 0) {
+    const status = ghHttpStatus(result.stderr) ?? ghHttpStatus(result.stdout);
+    if (status === 404 || status === null) return null;
+
+    const { AuthError, ForgeError } = await import('../../errors/index.js');
+    if (status === 401 || status === 403) {
+      throw new AuthError(
+        ErrorCode.AUTH_FAILED,
+        `Could not read releases for ${fullName} — the token was rejected.`,
+        {
+          provider: 'github',
+          operation: 'github.getRelease',
+          remediation:
+            'Run `gh auth status`. An expired or invalid token cannot distinguish a missing release from a failed read.',
+          detail: { repository: fullName, tag, status },
+        },
+      );
+    }
+
+    throw new ForgeError(ErrorCode.PROVIDER_FAILED, `Could not read the release for ${tag}.`, {
+      provider: 'github',
+      operation: 'github.getRelease',
+      remediation: 'Check network access to api.github.com, then retry.',
+      detail: { repository: fullName, tag, status, exitCode: result.exitCode },
+    });
+  }
 
   try {
     return parseRelease(JSON.parse(result.stdout) as Record<string, unknown>);

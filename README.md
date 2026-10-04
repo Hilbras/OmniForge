@@ -11,7 +11,7 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.8.0 — verification and release integrity.** `forge release` runs the
+> **Status: v0.8.1 — verification and release integrity.** `forge release` runs the
 > whole workflow, `forge verify` checks afterward that every provider agrees on
 > one version, and credential redaction is enforced at every output sink. GitHub
 > and npm are implemented; PyPI is pending credentials. See
@@ -205,6 +205,10 @@ Verify @acme/sdk@9.9.9
 
 `forge release` runs the same check automatically as its final step, so a partial
 release fails the command rather than reporting success.
+
+**A failed read is never reported as a missing release.** If your token is
+expired, you get an auth error — not a claim that a healthy release is missing,
+and not advice to re-publish on top of a working setup.
 
 ---
 

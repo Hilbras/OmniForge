@@ -9,6 +9,45 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.8.1] — 2026-10-04
+
+Patch release. Both fixes below were found by verifying the v0.8.0 release from a
+clean install — the released artifact, not the working tree — which is the only
+place the second one showed up.
+
+### Fixed
+
+- **An invalid GitHub token was reported as "the tag does not exist."**
+  `tagExistsRemote` and `getRelease` returned `false`/`null` for _any_ non-zero
+  exit, so a 401 was indistinguishable from a 404. `forge verify` then told the
+  user a published, healthy release was missing and advised re-publishing it —
+  actively harmful advice when the real problem was a rejected token. Only 404
+  may now mean "absent"; 401 and 403 raise an auth error naming `gh auth status`,
+  and a request that never completed raises rather than guessing.
+
+  Found by accident, which is the best kind of find: a canary token planted in
+  the environment for a leak test happened to be invalid, and the healthy 0.8.0
+  release failed its own integrity check.
+
+- **`dist-tag-matches` made historical releases unverifiable.** It asserted that
+  `latest` pointed at the version under verification, so verifying 0.7.0 after
+  0.8.0 shipped reported a broken release — correct npm behaviour flagged as a
+  bug. The expected tag is now enforced only for the version currently being
+  released. What must hold for any version is that it carries _some_ tag, so a
+  new `is-tagged` check covers that, since an untagged version cannot be
+  installed by name.
+
+- **GitHub provider test stubs were unrealistic.** They modelled "absent" as a
+  bare non-zero exit with no HTTP status, which is why the 401-as-404 flaw went
+  unnoticed. Real `gh` always reports the status; the stubs now do too.
+
+### Added
+
+- 14 regression tests covering 401, 403, 500, and an unstatused failure for both
+  GitHub read paths, asserting that none of them report a resource as missing.
+- The live `forge verify` tests now read the version from `package.json` instead
+  of hard-coding `0.7.0`, which went stale the moment 0.8.0 shipped.
+
 ## [0.8.0] — 2026-10-04
 
 Phase 9 — verification and release integrity.
@@ -396,6 +435,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.8.1]: https://github.com/Hilbras/hilbras-forge/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.5.0...v0.6.0

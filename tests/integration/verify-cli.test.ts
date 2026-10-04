@@ -7,12 +7,12 @@
  */
 
 import { execFile } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -23,6 +23,37 @@ interface Run {
   stderr: string;
   code: number;
 }
+
+/** The version in package.json. */
+const DECLARED_VERSION: string = (
+  JSON.parse(readFileSync(join(REPO_ROOT, 'package.json'), 'utf8')) as { version: string }
+).version;
+
+/**
+ * The newest version actually on npm, or null when the registry cannot be read.
+ *
+ * The live checks must run against a published release: verifying the version
+ * currently being developed fails by construction, and hard-coding an older
+ * number goes stale on every release. A missing publish is the publisher's
+ * problem to notice, not a reason for the suite to go red mid-release.
+ *
+ * Resolved at module scope because `skipIf` is evaluated while tests are being
+ * collected — a value assigned in `beforeAll` would still be undefined there.
+ */
+const PUBLISHED: string | null = await (async () => {
+  try {
+    const response = await fetch('https://registry.npmjs.org/@hilbras%2Fforge', {
+      headers: { 'cache-control': 'no-cache' },
+    });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { 'dist-tags'?: { latest?: string } };
+    return body['dist-tags']?.latest ?? null;
+  } catch {
+    return null;
+  }
+})();
+
+const SKIP_LIVE = PUBLISHED === null;
 
 async function forge(args: string[], cwd = REPO_ROOT): Promise<Run> {
   try {
@@ -39,10 +70,6 @@ async function forge(args: string[], cwd = REPO_ROOT): Promise<Run> {
 }
 
 describe('forge verify', () => {
-  beforeAll(() => {
-    expect(execFile).toBeDefined();
-  });
-
   it('documents itself', async () => {
     const { stdout } = await forge(['verify', '--help']);
 
@@ -51,12 +78,10 @@ describe('forge verify', () => {
     expect(stdout).toContain('Examples:');
   });
 
-  it('verifies the published release across live providers', async () => {
-    // 0.7.0 is the last version on both GitHub and npm, so this must pass — and
-    // it exercises two real providers agreeing on nothing, which is the point.
-    // Pinned deliberately: verifying the version currently being developed would
-    // fail by construction until it ships.
-    const { stdout, code } = await forge(['verify', '0.7.0']);
+  it.skipIf(SKIP_LIVE)('verifies the published release across live providers', async () => {
+    // The newest published version: its dist-tag is authoritative, which is what
+    // makes this a real check rather than a self-fulfilling one.
+    const { stdout, code } = await forge(['verify', PUBLISHED as string]);
 
     expect(stdout).toContain('github');
     expect(stdout).toContain('npm');
@@ -82,18 +107,18 @@ describe('forge verify', () => {
     expect(stdout).toMatch(/not (found|published)/);
   });
 
-  it('restricts to a single provider', async () => {
-    const { stdout } = await forge(['verify', '0.7.0', '--provider', 'npm']);
+  it.skipIf(SKIP_LIVE)('restricts to a single provider', async () => {
+    const { stdout } = await forge(['verify', PUBLISHED as string, '--provider', 'npm']);
 
     expect(stdout).toContain('npm');
     expect(stdout).not.toContain('github');
   });
 
-  it('emits a JSON report', async () => {
-    const { stdout } = await forge(['verify', '0.7.0', '--report', 'json']);
+  it.skipIf(SKIP_LIVE)('emits a JSON report', async () => {
+    const { stdout } = await forge(['verify', PUBLISHED as string, '--report', 'json']);
 
     // Anchored to the pretty-printed root object, not the first `{` in the
-    // stream: the heading above it is `Verify {@hilbras/forge@0.7.0}`, and
+    // stream: the heading above it is `Verify {@hilbras/forge@0.8.0}`, and
     // slicing at that brace produces invalid JSON.
     const start = stdout.indexOf('{\n');
     expect(start, 'expected a JSON object').toBeGreaterThanOrEqual(0);
@@ -125,6 +150,6 @@ describe('forge verify', () => {
   it('defaults to the current version', async () => {
     const { stdout } = await forge(['verify']);
 
-    expect(stdout).toMatch(/@0\.8\.0|@\d+\.\d+\.\d+/);
+    expect(stdout).toContain(`@${DECLARED_VERSION}`);
   });
 });

@@ -197,11 +197,18 @@ export class NpmProvider implements Provider {
   }
 
   /**
-   * Confirm the version landed and carries the expected dist-tag.
+   * Confirm the version landed and carries an expected dist-tag.
    *
    * A publish that reports success but lands on the wrong tag is a silent
    * failure from a user's perspective, so the tag is part of verification rather
    * than assumed.
+   *
+   * The expected tag is only enforced for the version currently being released.
+   * `latest` moves on — verifying 0.7.0 after 0.8.0 ships would otherwise fail on
+   * `latest` pointing at 0.8.0, which is correct npm behaviour being reported as
+   * a broken release. What must hold for *any* version is that it carries some
+   * tag at all, since an untagged version is unreachable through the normal
+   * install path.
    */
   async verify(context: ProviderContext, version: string): Promise<VerificationResult> {
     const name = this.#packageName(context);
@@ -215,6 +222,10 @@ export class NpmProvider implements Provider {
     const expectedTag = npm.distTagFor(version, prerelease);
     const actualTag = info === null ? null : findTag(info, version);
 
+    // The newest published version is the one whose dist-tag is authoritative;
+    // for anything older the tag has legitimately moved on.
+    const isCurrent = info !== null && (info.distTags.latest === version || !info.distTags.latest);
+
     const checks = [
       {
         name: 'package-exists',
@@ -227,12 +238,24 @@ export class NpmProvider implements Provider {
         detail: exists ? version : `${version} not published`,
       },
       {
+        name: 'is-tagged',
+        // Every published version needs some tag; an untagged one cannot be
+        // installed by name.
+        passed: actualTag !== null,
+        detail: actualTag === null ? 'no dist-tag points at this version' : `tagged ${actualTag}`,
+      },
+      {
         name: 'dist-tag-matches',
-        passed: actualTag === expectedTag,
-        detail:
-          actualTag === null
+        // Only meaningful for the version currently being released; `latest`
+        // moves on by design once a newer version ships.
+        passed: actualTag !== null && (isCurrent ? actualTag === expectedTag : true),
+        detail: !isCurrent
+          ? 'not the latest release — tag not enforced'
+          : actualTag === null
             ? 'no dist-tag points at this version'
-            : `expected ${expectedTag}, saw ${actualTag}`,
+            : actualTag === expectedTag
+              ? `${actualTag}`
+              : `expected ${expectedTag}, saw ${actualTag}`,
       },
       {
         // The safety property, asserted rather than assumed.
