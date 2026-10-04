@@ -14,12 +14,8 @@
  * registry and calls them through the `Provider` interface.
  */
 
-import type {
-  ObservedVersion,
-  Provider,
-  ProviderContext,
-  VerificationResult,
-} from '../core/provider.js';
+import type { ObservedVersion, Provider, ProviderContext } from '../core/provider.js';
+import { verifyRelease } from '../verification/integrity.js';
 import type { ProviderRegistry } from '../core/registry.js';
 import type { ForgeConfig } from '../configuration/schema.js';
 import type { BumpStrategy } from '../version/semver.js';
@@ -407,49 +403,37 @@ export async function runRelease(
 
   let integrity: IntegritySummary | undefined;
   if (!request.dryRun) {
-    const observed: { provider: string; version: string | null }[] = [];
-    const verifications: VerificationResult[] = [];
+    // Delegates to the shared integrity module so `forge verify` and the pipeline
+    // cannot drift apart. Two implementations of "do the providers agree?" would
+    // eventually disagree with each other, which is the bug this exists to catch.
+    const report = await verifyRelease(config, {
+      registry: deps.registry,
+      version,
+      contextFor: () => context,
+      providersFor: () => providerNames,
+    });
 
-    for (const name of providerNames) {
-      try {
-        const provider = deps.registry.create(name);
-        const result = await provider.verify(context, version);
-        verifications.push(result);
-        observed.push({ provider: name, version: result.observed.version });
-      } catch (error) {
-        const forgeError = error as { message?: string };
-        observed.push({ provider: name, version: null });
+    for (const entry of report.entries) {
+      for (const check of entry.checks) {
         record({
           step: 'verify',
-          provider: name,
-          status: 'failed',
-          detail: forgeError.message ?? String(error),
+          provider: entry.provider,
+          status: check.passed ? 'passed' : 'failed',
+          detail: `${check.name}: ${check.detail}`,
           durationMs: 0,
           mandatory: false,
         });
       }
     }
 
-    // A provider is expected to report its tag with the prefix; compare on the
-    // bare version so `v1.5.0` and `1.5.0` are not called a mismatch.
-    const mismatches = observed
-      .filter(
-        (entry) =>
-          entry.version !== null && !sameVersion(entry.version, version, config.version.tagPrefix),
-      )
-      .map((entry) => `${entry.provider} reports ${entry.version}, expected ${version}`);
-
-    const missing = observed
-      .filter((entry) => entry.version === null)
-      .map((entry) => `${entry.provider} did not report a version`);
-
-    const failed = verifications.filter((v) => !v.verified).map((v) => v.provider);
-
     integrity = {
-      passed: mismatches.length === 0 && missing.length === 0 && failed.length === 0,
-      expected: version,
-      observed,
-      mismatches: [...mismatches, ...missing, ...failed.map((p) => `${p} verification failed`)],
+      passed: report.passed,
+      expected: report.expected,
+      observed: report.entries.map((entry) => ({
+        provider: entry.provider,
+        version: entry.observed,
+      })),
+      mismatches: report.problems,
     };
 
     if (!integrity.passed && !halted) halted = true;
@@ -492,13 +476,6 @@ function finish(
     startedAt: new Date(started).toISOString(),
     totalDurationMs: Date.now() - started,
   };
-}
-
-/** Compare versions ignoring a tag prefix. */
-function sameVersion(a: string, b: string, prefix: string): boolean {
-  const strip = (value: string): string =>
-    prefix.length > 0 && value.startsWith(prefix) ? value.slice(prefix.length) : value;
-  return strip(a) === strip(b);
 }
 
 /** True when any step failed. */

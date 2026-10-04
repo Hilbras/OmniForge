@@ -9,6 +9,47 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Nothing yet.
 
+## [0.8.0] — 2026-10-04
+
+Phase 9 — verification and release integrity.
+
+### Added
+
+- **`forge verify`** — checks that every enabled provider reports one agreed
+  version, standalone and at any time: after CI, before a deploy, or days later
+  when someone suspects a tag and a package disagree. Exits 3 on a mismatch, so a
+  deploy step can gate on it.
+- **Per-check detail on failure.** The output names which assertion broke
+  (`tag-exists`, `version-exists`, `dist-tag-matches`) rather than only that a
+  provider failed, so the next action is obvious.
+- **`--provider` and `--config`** on `verify`, matching every other command.
+- **An unreachable provider does not hide the others.** A registry that throws is
+  recorded as unreachable and the comparison continues, because a real mismatch
+  in another provider is still worth reporting.
+- **Tag-prefix tolerance.** GitHub reports `v1.5.0` while npm reports `1.5.0`.
+  That is agreement, and comparing them literally would have made the check
+  useless for the most likely real-world shape.
+- 27 tests: 19 unit (mismatch, missing version, unreachable provider, custom
+  prefix, remediation text) and 8 CLI integration against live GitHub and npm.
+
+### Changed
+
+- **The release pipeline now delegates to the shared integrity module.** It had
+  its own copy of the cross-provider comparison. Two implementations of "do the
+  providers agree?" would eventually disagree with each other — which is the
+  exact bug the check exists to catch — so the duplicate was removed rather than
+  left to drift.
+
+### Fixed
+
+- **`forge verify` had no `--config` flag**, unlike every other command, so a
+  verification could not be pointed at a specific configuration file.
+- **A live-network integration test was flaky at roughly 1 run in 3.**
+  `forge npm status` takes 1-2s alone but exceeded the 30s default timeout under
+  parallel suite load. Raised to 120s for the tests that genuinely hit a
+  provider, and confirmed stable over four consecutive full runs. The commands
+  themselves were not slow; the timeout was simply too tight for loaded CI.
+
 ## [0.7.0] — 2026-10-01
 
 Phase 11 — security hardening.
@@ -355,6 +396,7 @@ Phase 0 — Foundation.
   through the registry.
 
 [Unreleased]: https://github.com/Hilbras/hilbras-forge/compare/v0.1.0...HEAD
+[0.8.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/Hilbras/hilbras-forge/compare/v0.4.0...v0.5.0

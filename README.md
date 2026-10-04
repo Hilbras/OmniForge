@@ -11,9 +11,11 @@ Project → Config → Validation → Version → Checks → Build
         → Git tag → GitHub Release → npm → PyPI → Verify → Report
 ```
 
-> **Status: v0.7.0 — security hardening.** `forge release` runs the whole workflow,
-> and credential redaction is enforced at every output sink. GitHub and npm are
-> implemented; PyPI is pending credentials. See [Roadmap](#roadmap).
+> **Status: v0.8.0 — verification and release integrity.** `forge release` runs the
+> whole workflow, `forge verify` checks afterward that every provider agrees on
+> one version, and credential redaction is enforced at every output sink. GitHub
+> and npm are implemented; PyPI is pending credentials. See
+> [Roadmap](#roadmap).
 
 ---
 
@@ -164,6 +166,45 @@ and reports the file list).
 
 > **Publishing is irreversible on npm and PyPI.** Run `--dry-run` first, and try
 > a throwaway package before your first real release.
+
+---
+
+## Verifying a release
+
+`forge verify` answers one question: does every provider agree on one version?
+
+```bash
+forge verify              # the current version
+forge verify 1.2.3        # a specific version
+forge verify --provider npm github
+forge verify --report json
+```
+
+```text
+Verify @hilbras/forge@0.8.0
+✓ github     v0.8.0       ok
+✓ npm        0.8.0        ok
+
+✓ 0.8.0 verified across 2 provider(s)
+```
+
+A release where GitHub says `1.5.0` and npm says `1.4.0` is broken in a way no
+single provider can detect, because each is individually correct. That is what
+this command exists for. On a mismatch it names the check that broke and exits
+`3`, so a deploy step can gate on it:
+
+```text
+Verify @acme/sdk@9.9.9
+✗ github     —            failed
+✗ npm        —            failed
+  github: tag-exists — v9.9.9 not found on the remote
+  npm: version-exists — 9.9.9 not published
+
+✗ 9.9.9: 2 problem(s)
+```
+
+`forge release` runs the same check automatically as its final step, so a partial
+release fails the command rather than reporting success.
 
 ---
 

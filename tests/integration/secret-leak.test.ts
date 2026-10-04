@@ -66,6 +66,11 @@ describe('no secret reaches CLI output', () => {
     ['npm', 'status'],
   ];
 
+  // These run against live providers, so the timeout is generous on purpose: a
+  // slow registry response is a real condition, not a failure, and the default
+  // 30s made this suite flaky roughly one run in three.
+  const LIVE_TIMEOUT = 120_000;
+
   it.each(commands.map((c) => [c.join(' '), c] as const))(
     '`forge %s` never prints a credential',
     async (_label, args) => {
@@ -74,15 +79,20 @@ describe('no secret reaches CLI output', () => {
       expect(stdout).not.toContain('LEAKCANARY');
       expect(stderr).not.toContain('LEAKCANARY');
     },
+    LIVE_TIMEOUT,
   );
 
-  it('reports credential presence without printing a value', async () => {
-    const { stdout } = await forge(['config', 'credentials']);
+  it(
+    'reports credential presence without printing a value',
+    async () => {
+      const { stdout } = await forge(['config', 'credentials']);
 
-    // Presence and the variable name are safe and useful.
-    expect(stdout).toContain('NPM_TOKEN');
-    expect(stdout).not.toContain('LEAKCANARY');
-  });
+      // Presence and the variable name are safe and useful.
+      expect(stdout).toContain('NPM_TOKEN');
+      expect(stdout).not.toContain('LEAKCANARY');
+    },
+    LIVE_TIMEOUT,
+  );
 
   it('does not leak a credential through a failing command', async () => {
     // A non-zero exit with a rendered ForgeError — the path most likely to carry
@@ -98,12 +108,16 @@ describe('no secret reaches CLI output', () => {
     expect(stderr).not.toContain('LEAKCANARY');
   });
 
-  it('does not leak a credential through --verbose', async () => {
-    const { stdout, stderr } = await forge(['--verbose', 'config', 'credentials']);
+  it(
+    'does not leak a credential through --verbose',
+    async () => {
+      const { stdout, stderr } = await forge(['--verbose', 'config', 'credentials']);
 
-    expect(stdout).not.toContain('LEAKCANARY');
-    expect(stderr).not.toContain('LEAKCANARY');
-  });
+      expect(stdout).not.toContain('LEAKCANARY');
+      expect(stderr).not.toContain('LEAKCANARY');
+    },
+    LIVE_TIMEOUT,
+  );
 
   it('does not leak a credential through an unknown command error', async () => {
     const { stdout, stderr } = await forge(['nonexistent-command']);
