@@ -9,9 +9,9 @@
  * never mistaken for "it wrote a usable file".
  */
 
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { parse as parseYamlText } from 'yaml';
@@ -58,7 +58,12 @@ describe('detectProject', () => {
     // No manifest name, and the directory is all there is to go on.
     const project = detectProject(dir);
 
-    expect(project.name).toBe(dir.split('/').filter(Boolean).pop());
+    // `basename`, not `split('/')`. On Windows the separator is a backslash and
+    // the temp directory arrives in a short form (C:\Users\RUNNER~1\...) whose
+    // basename is not the forge-init-XXXX this test created, so the split returned
+    // the wrong component and the assertion failed on all three Windows jobs.
+    // `basename` asks the platform, which is the question being asked here.
+    expect(project.name).toBe(basename(realpathSync(dir)));
     expect(project.ecosystemId).toBe('unknown');
   });
 

@@ -8,7 +8,7 @@
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -89,6 +89,19 @@ function stripComments(source: string): string {
  * name. Keeping the list explicit means a new provider has to be added here to
  * be importable, which is a deliberate act.
  */
+/**
+ * Normalise a relative path to forward slashes.
+ *
+ * `path.relative` returns `core\\default-registry.ts` on Windows, so the
+ * allowlists below — written with forward slashes for readability — matched
+ * nothing and every file looked like an offender. That is why the architecture
+ * test failed on all three Windows jobs while passing on Linux and macOS: the
+ * guarantee it enforces was never actually being checked there.
+ */
+function posixPath(rel: string): string {
+  return rel.split(sep).join('/');
+}
+
 const COMPOSITION_ROOTS = ['core/default-registry.ts'] as const;
 
 const isCompositionRoot = (rel: string): boolean =>
@@ -147,7 +160,7 @@ describe('architecture', () => {
     const dirPath = join(SRC, dir);
     const files = collect(dirPath);
     const imports = files.flatMap((file) => {
-      const rel = relative(SRC, file);
+      const rel = posixPath(relative(SRC, file));
       const source = readFileSync(file, 'utf8');
       return [...source.matchAll(/from\s+'([^']+)'/g)]
         .map((m) => ({ rel, target: m[1] ?? '' }))
@@ -164,7 +177,7 @@ describe('architecture', () => {
     it('contains no platform name literals in conditional logic', () => {
       const offenders: string[] = [];
       for (const file of files) {
-        const rel = relative(SRC, file);
+        const rel = posixPath(relative(SRC, file));
         // Strip comments before matching: prose legitimately discusses platform
         // names (including comments that explain why they are forbidden here),
         // and only code should be constrained.
@@ -217,7 +230,7 @@ describe('architecture', () => {
     // build one itself; only the library entry point and the CLI may, because
     // those are the two places providers get wired in.
     const offenders = ALL_SRC.filter((file) => {
-      const rel = relative(SRC, file);
+      const rel = posixPath(relative(SRC, file));
       // The definition itself, the re-export, and the composition roots.
       if (rel === 'index.ts' || rel.startsWith('cli/') || rel === 'core/registry.ts') return false;
       if (isCompositionRoot(rel)) return false;
@@ -237,7 +250,7 @@ describe('architecture', () => {
     // through the registry by name.
     const offenders: string[] = [];
     for (const file of ALL_SRC) {
-      const rel = relative(SRC, file);
+      const rel = posixPath(relative(SRC, file));
       if (rel === 'index.ts' || rel.startsWith('cli/') || rel.startsWith('providers/')) continue;
       if (isCompositionRoot(rel)) continue;
       if (/new\s+[A-Z]\w*Provider\s*\(/.test(readFileSync(file, 'utf8'))) {

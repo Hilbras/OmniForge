@@ -6,6 +6,9 @@
  * literally, not interpreted.
  */
 
+import { mkdtempSync, realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { execute, executeOrThrow, hasShellMetacharacters } from '../../src/build/exec.js';
@@ -13,7 +16,7 @@ import { CheckError } from '../../src/errors/index.js';
 
 describe('execute', () => {
   it('captures stdout and the exit code', async () => {
-    const result = await execute('node', ['-e', 'process.stdout.write("hello")']);
+    const result = await execute(process.execPath, ['-e', 'process.stdout.write("hello")']);
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toBe('hello');
@@ -21,7 +24,7 @@ describe('execute', () => {
   });
 
   it('captures stderr separately from stdout', async () => {
-    const result = await execute('node', [
+    const result = await execute(process.execPath, [
       '-e',
       'process.stdout.write("out"); process.stderr.write("err")',
     ]);
@@ -33,7 +36,7 @@ describe('execute', () => {
   it('does not throw on a non-zero exit', async () => {
     // "exit 1" is meaningful data for a check; only executeOrThrow treats it as
     // an error.
-    const result = await execute('node', ['-e', 'process.exit(3)']);
+    const result = await execute(process.execPath, ['-e', 'process.exit(3)']);
 
     expect(result.exitCode).toBe(3);
     expect(result.timedOut).toBe(false);
@@ -41,7 +44,7 @@ describe('execute', () => {
 
   it('streams output through onOutput', async () => {
     const chunks: string[] = [];
-    await execute('node', ['-e', 'console.log("streamed")'], {
+    await execute(process.execPath, ['-e', 'console.log("streamed")'], {
       onOutput: (chunk) => chunks.push(chunk),
     });
 
@@ -50,7 +53,7 @@ describe('execute', () => {
 
   it('writes input to stdin', async () => {
     const result = await execute(
-      'node',
+      process.execPath,
       [
         '-e',
         'let d=""; process.stdin.on("data",c=>d+=c); process.stdin.on("end",()=>process.stdout.write(d))',
@@ -62,16 +65,23 @@ describe('execute', () => {
   });
 
   it('honours cwd', async () => {
-    const result = await execute('node', ['-e', 'process.stdout.write(process.cwd())'], {
-      cwd: '/tmp',
+    // `process.execPath` rather than the bare string 'node': a GitHub Windows
+    // runner has setup-node's directory on PATH for the job but not necessarily
+    // for a child spawn with a replaced environment. An absolute path always
+    // resolves.
+    //
+    // `os.tmpdir()` rather than '/tmp', which does not exist on Windows.
+    const target = mkdtempSync(join(tmpdir(), 'forge-cwd-'));
+    const result = await execute(process.execPath, ['-e', 'process.stdout.write(process.cwd())'], {
+      cwd: target,
     });
 
-    expect(result.stdout).toContain('tmp');
+    expect(realpathSync(result.stdout)).toBe(realpathSync(target));
   });
 
   it('passes extra environment variables', async () => {
     const result = await execute(
-      'node',
+      process.execPath,
       ['-e', 'process.stdout.write(process.env.FORGE_TEST_VAR ?? "")'],
       {
         env: { FORGE_TEST_VAR: 'injected' },
@@ -84,7 +94,7 @@ describe('execute', () => {
   describe('shell safety', () => {
     it('passes a metacharacter through literally, not as a command', async () => {
       // If this ran through a shell, `;` would start a second command.
-      const result = await execute('node', [
+      const result = await execute(process.execPath, [
         '-e',
         'process.stdout.write(process.argv[1] ?? "")',
         '; rm -rf /; echo pwned',
@@ -95,7 +105,7 @@ describe('execute', () => {
     });
 
     it('does not expand an injected command substitution', async () => {
-      const result = await execute('node', [
+      const result = await execute(process.execPath, [
         '-e',
         'process.stdout.write(process.argv[1] ?? "")',
         '$(id)',
@@ -105,7 +115,7 @@ describe('execute', () => {
     });
 
     it('does not expand a backtick substitution', async () => {
-      const result = await execute('node', [
+      const result = await execute(process.execPath, [
         '-e',
         'process.stdout.write(process.argv[1] ?? "")',
         '`id`',
@@ -115,7 +125,7 @@ describe('execute', () => {
     });
 
     it('treats a redirect character as data', async () => {
-      const result = await execute('node', [
+      const result = await execute(process.execPath, [
         '-e',
         'process.stdout.write(process.argv[1] ?? "")',
         'a > b',
@@ -127,14 +137,16 @@ describe('execute', () => {
 
   describe('timeouts', () => {
     it('kills a command that exceeds its timeout', async () => {
-      const result = await execute('node', ['-e', 'setTimeout(()=>{}, 10000)'], { timeoutMs: 300 });
+      const result = await execute(process.execPath, ['-e', 'setTimeout(()=>{}, 10000)'], {
+        timeoutMs: 300,
+      });
 
       expect(result.timedOut).toBe(true);
       expect(result.exitCode).not.toBe(0);
     });
 
     it('does not time out a fast command', async () => {
-      const result = await execute('node', ['-e', 'process.stdout.write("quick")'], {
+      const result = await execute(process.execPath, ['-e', 'process.stdout.write("quick")'], {
         timeoutMs: 10_000,
       });
 
@@ -143,7 +155,9 @@ describe('execute', () => {
     });
 
     it('reports a non-zero exit for a signalled process', async () => {
-      const result = await execute('node', ['-e', 'setTimeout(()=>{}, 10000)'], { timeoutMs: 200 });
+      const result = await execute(process.execPath, ['-e', 'setTimeout(()=>{}, 10000)'], {
+        timeoutMs: 200,
+      });
 
       // 143 = 128 + SIGTERM, so callers see failure rather than a zero exit.
       expect(result.exitCode).toBeGreaterThan(0);
@@ -181,14 +195,17 @@ describe('execute', () => {
 
 describe('executeOrThrow', () => {
   it('returns the result on success', async () => {
-    const result = await executeOrThrow('node', ['-e', 'process.stdout.write("ok")']);
+    const result = await executeOrThrow(process.execPath, ['-e', 'process.stdout.write("ok")']);
 
     expect(result.stdout).toBe('ok');
   });
 
   it('throws CHECK_FAILED on a non-zero exit', async () => {
     try {
-      await executeOrThrow('node', ['-e', 'process.stderr.write("bad"); process.exit(1)']);
+      await executeOrThrow(process.execPath, [
+        '-e',
+        'process.stderr.write("bad"); process.exit(1)',
+      ]);
       expect.unreachable('should have thrown');
     } catch (error) {
       expect((error as CheckError).code).toBe('CHECK_FAILED');
@@ -198,7 +215,9 @@ describe('executeOrThrow', () => {
 
   it('throws CHECK_TIMEOUT when the command timed out', async () => {
     try {
-      await executeOrThrow('node', ['-e', 'setTimeout(()=>{}, 10000)'], { timeoutMs: 250 });
+      await executeOrThrow(process.execPath, ['-e', 'setTimeout(()=>{}, 10000)'], {
+        timeoutMs: 250,
+      });
       expect.unreachable('should have thrown');
     } catch (error) {
       expect((error as CheckError).code).toBe('CHECK_TIMEOUT');
@@ -207,7 +226,7 @@ describe('executeOrThrow', () => {
 
   it('includes the exit code in the message', async () => {
     try {
-      await executeOrThrow('node', ['-e', 'process.exit(42)']);
+      await executeOrThrow(process.execPath, ['-e', 'process.exit(42)']);
       expect.unreachable('should have thrown');
     } catch (error) {
       expect((error as CheckError).message).toContain('42');
