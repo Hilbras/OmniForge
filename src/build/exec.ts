@@ -79,13 +79,84 @@ export function resolveProgram(command: string): string {
   if (command.includes('/') || command.includes('\\')) return command;
   if (extname(command).length > 0) return command;
 
-  // A .cmd shim is what npm, npx and twine install; .exe and .bat are checked
-  // for tools that ship those instead.
+  // A .cmd shim is what npm and npx install; twine ships .exe and .bat.
   for (const extension of ['.cmd', '.exe', '.bat']) {
     if (findOnPath(`${command}${extension}`)) return `${command}${extension}`;
   }
 
   return command;
+}
+
+/**
+ * Decide what to actually spawn.
+ *
+ * On POSIX this is the command and its arguments, untouched.
+ *
+ * On Windows a batch file has to go through cmd.exe, so the program becomes
+ * `cmd.exe` and the arguments become `['/d', '/s', '/c', <command line>]`. The
+ * command line is the one place a string is built, so it is escaped here with
+ * the quoting rules cmd.exe applies — and Forge's own threat model says a
+ * metacharacter must reach the command as a literal, which this preserves.
+ */
+export function buildInvocation(
+  program: string,
+  args: readonly string[],
+): { program: string; args: string[] } {
+  if (!needsCommandInterpreter(program)) {
+    return { program, args: [...args] };
+  }
+
+  // Every argument is quoted, including ones with no metacharacters. With /s in
+  // play, cmd strips the outermost pair of quotes from the command line and
+  // leaves the rest alone — so a plain argument must be quoted too, or a value
+  // containing whitespace would split into two arguments after stripping.
+  //
+  // /d skips AutoRun registry entries, which would otherwise execute on every
+  // single invocation.
+  const line = [program, ...args].map(quoteCmdArgument).join(' ');
+
+  return { program: process.env.ComSpec ?? 'cmd.exe', args: ['/d', '/s', '/c', line] };
+}
+
+/**
+ * Quote one argument for cmd.exe.
+ *
+ * cmd.exe does not use backslash escapes. Its rules are:
+ *
+ *   - `"` inside an argument is escaped by doubling it.
+ *   - A trailing backslash is doubled, because the closing `"` it sits next to
+ *     would otherwise be read as escaped.
+ *   - `&`, `|`, `<`, `>`, `^` and `%` are syntax even inside quotes, so they are
+ *     escaped with `^` as well as quoted. Quoting alone is not enough.
+ *
+ * The result is what a caller sees after cmd.exe has parsed the line: a
+ * metacharacter survives as itself rather than executing.
+ */
+export function quoteCmdArgument(value: string): string {
+  // A caret must itself be doubled, or it escapes the character after it.
+  // `&`, `|`, `<` and `>` are cmd statement separators; quoting does not stop
+  // them, so they are caret-escaped as well.
+  let escaped = value.replace(/([%^&|<>])/g, '^$1');
+  escaped = escaped.replace(/"/g, '""');
+  // Only a backslash run immediately before the closing quote is significant.
+  escaped = escaped.replace(/(\\*)$/, '$1$1');
+
+  return `"${escaped}"`;
+}
+
+/**
+ * Whether a resolved program is a batch file, which Windows cannot spawn directly.
+ *
+ * Node closed CVE-2024-27980 by refusing to spawn `.bat` and `.cmd` files: an
+ * argument to a batch file is not escaped by CreateProcess, so a crafted argument
+ * could inject a command. `spawn('npm.cmd', ...)` therefore fails with EINVAL
+ * even though the file exists and is on PATH.
+ */
+function needsCommandInterpreter(program: string): boolean {
+  if (process.platform !== 'win32') return false;
+  const extension = extname(program).toLowerCase();
+
+  return extension === '.cmd' || extension === '.bat';
 }
 
 /**
@@ -131,12 +202,17 @@ export async function execute(
   const grace = options.killGraceMs ?? DEFAULT_GRACE_MS;
   const started = Date.now();
   const program = resolveProgram(command);
+  const invocation = buildInvocation(program, args);
 
   return new Promise<ExecResult>((resolve, reject) => {
     let child;
     try {
-      child = spawn(program, [...args], {
-        // No shell. This is the entire point of the module.
+      child = spawn(invocation.program, invocation.args, {
+        // No shell, except where Windows gives us no alternative: a .cmd shim is
+        // not a real executable, so cmd.exe is invoked explicitly with an
+        // argument array and `shell: false`. cmd.exe is not interpreting a string
+        // Forge built from user input — it receives a fixed argv, and each
+        // argument is escaped by quoteCmdArgument below.
         shell: false,
         cwd: options.cwd,
         env: options.env === undefined ? process.env : { ...process.env, ...options.env },

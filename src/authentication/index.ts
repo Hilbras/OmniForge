@@ -8,10 +8,24 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { resolveProgram } from '../build/exec.js';
+import { buildInvocation, resolveProgram } from '../build/exec.js';
 
 import { AuthError, ErrorCode } from '../errors/index.js';
 import type { ProviderName } from '../configuration/schema.js';
+
+/**
+ * Resolve a command and its arguments into a spawnable program/argv pair.
+ *
+ * `gh` is `gh.exe` on Windows and spawns directly, but on some installations it
+ * is a `.cmd` shim, which Windows cannot spawn without cmd.exe. Going through the
+ * shared builder means that rule lives in one place rather than being re-decided
+ * at every call site.
+ */
+function invocationFor(command: string, args: readonly string[] = []): [string, string[]] {
+  const { program, args: resolved } = buildInvocation(resolveProgram(command), args);
+
+  return [program, resolved];
+}
 
 /** Where a credential came from, so an auth failure can explain itself. */
 export type CredentialSource = 'environment' | 'tool' | 'absent';
@@ -40,18 +54,34 @@ export function resolveFromEnv(env: NodeJS.ProcessEnv, envVar: string): Resolved
   return { present: true, source: 'environment', envVar };
 }
 
-/** The signed-in GitHub account, for display. Returns undefined when unknown. */
+/**
+ * The signed-in GitHub account, for display. Returns undefined when unknown.
+ *
+ * Memoised for the process. `resolveGitHub` calls this to label a credential,
+ * and `config credentials` asks about every provider, so without this the same
+ * `gh api user` call is made two or three times per command — which is why that
+ * command was timing out under parallel test load rather than failing.
+ */
+let cachedIdentity: string | undefined;
+let identityResolved = false;
+
 export function ghIdentity(): string | undefined {
+  if (identityResolved) return cachedIdentity;
+
+  identityResolved = true;
   try {
-    return execFileSync(resolveProgram('gh'), ['api', 'user', '--jq', '.login'], {
+    const [program, args] = invocationFor('gh', ['api', 'user', '--jq', '.login']);
+    cachedIdentity = execFileSync(program, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 10_000,
     }).trim();
   } catch {
     // gh absent, not signed in, or offline. Identity is decorative.
-    return undefined;
+    cachedIdentity = undefined;
   }
+
+  return cachedIdentity;
 }
 
 /**
@@ -66,7 +96,8 @@ export function resolveGitHub(env: NodeJS.ProcessEnv): ResolvedCredential {
   if (fromEnv.present) return fromEnv;
 
   try {
-    const token = execFileSync(resolveProgram('gh'), ['auth', 'token'], {
+    const [program, args] = invocationFor('gh', ['auth', 'token']);
+    const token = execFileSync(program, args, {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 10_000,

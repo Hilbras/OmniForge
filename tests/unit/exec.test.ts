@@ -12,9 +12,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildInvocation,
   execute,
   executeOrThrow,
   hasShellMetacharacters,
+  quoteCmdArgument,
   resolveProgram,
 } from '../../src/build/exec.js';
 import { CheckError } from '../../src/errors/index.js';
@@ -284,9 +286,76 @@ describe('resolveProgram', () => {
   it('returns a name that spawn can actually resolve', async () => {
     // The property that matters: whatever comes back must be executable. On
     // Windows this is the assertion that would have caught the ENOENT.
-    const result = await execute(resolveProgram('npm'), ['--version'], { timeoutMs: 60_000 });
+    // Through execute(), which is the path the npm provider actually takes.
+    const result = await execute('npm', ['--version'], { timeoutMs: 60_000 });
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toMatch(/\d+\./);
+  });
+});
+
+describe('cmd.exe argument quoting', () => {
+  // cmd.exe does not use backslash escapes. These expectations encode its actual
+  // rules, verified against Microsoft\'s own parser documentation, because a
+  // plausible-looking but wrong escaper would pass a test written from memory and
+  // then hand a crafted argument to a shell.
+  it('quotes every argument, so /s cannot split it after stripping the outer pair', () => {
+    for (const value of ['pack', '--dry-run', 'a b', 'release']) {
+      expect(quoteCmdArgument(value).startsWith('"'), value).toBe(true);
+      expect(quoteCmdArgument(value).endsWith('"'), value).toBe(true);
+    }
+  });
+
+  it('doubles an embedded double quote, which is how cmd.exe escapes one', () => {
+    expect(quoteCmdArgument('say "hi"')).toBe('"say ""hi"""');
+  });
+
+  it('caret-escapes a metacharacter, because quoting alone is not enough', () => {
+    // These are cmd.exe syntax even inside quotes. This is the property that keeps
+    // `a; rm -rf /` an argument rather than two commands.
+    expect(quoteCmdArgument('a & b')).toBe('"a ^& b"');
+    expect(quoteCmdArgument('a | b')).toBe('"a ^| b"');
+    expect(quoteCmdArgument('x > y')).toBe('"x ^> y"');
+  });
+
+  it('doubles a literal caret so it does not escape the next character', () => {
+    expect(quoteCmdArgument('a ^ b')).toBe('"a ^^ b"');
+  });
+
+  it('escapes a percent sign, which cmd expands as a variable', () => {
+    expect(quoteCmdArgument('%PATH%')).toBe('"^%PATH^%"');
+  });
+
+  it('doubles a trailing backslash so it cannot escape the closing quote', () => {
+    expect(quoteCmdArgument('ends with\\\\')).toBe('"ends with\\\\\\\\"');
+  });
+
+  it('leaves an interior backslash alone', () => {
+    expect(quoteCmdArgument('C:\\\\tools\\\\npm.cmd')).toBe('"C:\\\\tools\\\\npm.cmd"');
+  });
+});
+
+describe('buildInvocation', () => {
+  it('passes a real executable straight through', () => {
+    const { program, args } = buildInvocation('git', ['log', '--oneline']);
+
+    expect(program).toBe('git');
+    expect(args).toEqual(['log', '--oneline']);
+  });
+
+  it('routes a batch file through cmd.exe on Windows', () => {
+    if (process.platform !== 'win32') {
+      // Off Windows the shim is a no-op, so assert that explicitly rather than
+      // pretending the Windows branch was exercised.
+      expect(buildInvocation('npm.cmd', ['--version']).program).toBe('npm.cmd');
+      return;
+    }
+
+    const { program, args } = buildInvocation('npm.cmd', ['--version']);
+
+    expect(program.toLowerCase()).toContain('cmd');
+    expect(args.slice(0, 3)).toEqual(['/d', '/s', '/c']);
+    expect(args[3]).toContain('npm.cmd');
+    expect(args[3]).toContain('--version');
   });
 });

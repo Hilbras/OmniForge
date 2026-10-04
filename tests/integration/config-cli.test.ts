@@ -229,7 +229,11 @@ github:
     // `gh api user`. Each can take several seconds, and under parallel test
     // load they exceed vitest's 5s default — which surfaced as an intermittent
     // failure with no failing assertion at all.
-    const GITHUB_TIMEOUT_MS = 30_000;
+    //
+    // 60s rather than 30s: the Windows and Linux jobs here both ran this file
+    // alongside seven other live-network files, and 30s was not enough headroom
+    // for the machine rather than for the code.
+    const GITHUB_TIMEOUT_MS = 60_000;
 
     it(
       'reports presence without revealing values',
