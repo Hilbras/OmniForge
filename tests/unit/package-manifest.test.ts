@@ -11,13 +11,12 @@
  * on a pull request rather than by a failed publish.
  */
 
-import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { buildInvocation, resolveProgram } from '../../src/build/exec.js';
+import { execute } from '../../src/build/exec.js';
 
 const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)), '..', '..');
 const NUL = 0;
@@ -75,23 +74,24 @@ describe('the package manifest', () => {
   });
 
   // npm pack takes ~50s under parallel load, which exceeds vitest's 5s default.
-  it('is publishable as a dry run', { timeout: 240_000 }, () => {
+  it('is publishable as a dry run', { timeout: 240_000 }, async () => {
     // The real check npm makes. Slower than the assertions above, but it is the
     // only one that cannot be fooled by something npm treats specially.
-    // The same resolution the product uses, so this test cannot pass on Windows
-    // for a different reason than the CLI behaves there.
-    const { program, args } = buildInvocation(resolveProgram('npm'), [
-      'pack',
-      '--dry-run',
-      '--json',
-    ]);
-    const result = execFileSync(program, args, {
+    // Through execute(), not execFileSync.
+    //
+    // On Windows npm is a .cmd shim, which cannot be spawned directly at all, so
+    // execute() routes it through cmd.exe with windowsVerbatimArguments. execFileSync
+    // cannot express that — it re-quotes the command line and cmd then reports
+    // '`"npm.cmd "pack" ...` is not recognized'. Using the product's own executor
+    // also means this test fails for the same reason the CLI would fail, rather
+    // than for a reason only a test can produce.
+    const result = await execute('npm', ['pack', '--dry-run', '--json'], {
       cwd: ROOT,
-      encoding: 'utf8',
-      timeout: 180_000,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      timeoutMs: 180_000,
     });
-    const parsed = JSON.parse(result) as {
+    expect(result.exitCode, result.stderr).toBe(0);
+
+    const parsed = JSON.parse(result.stdout) as {
       name: string;
       version: string;
       files: unknown[];
