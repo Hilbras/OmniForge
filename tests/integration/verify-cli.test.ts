@@ -42,7 +42,7 @@ const DECLARED_VERSION: string = (
  */
 const PUBLISHED: string | null = await (async () => {
   try {
-    const response = await fetch('https://registry.npmjs.org/@hilbras%2Fforge', {
+    const response = await fetch('https://registry.npmjs.org/@hilbras%2Fomniforge', {
       headers: { 'cache-control': 'no-cache' },
     });
     if (!response.ok) return null;
