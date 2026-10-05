@@ -29,8 +29,27 @@ async function forge(args: string[], cwd?: string, envExtra?: Record<string, str
     });
     return { stdout, stderr, code: 0 };
   } catch (error) {
-    const e = error as { stdout?: string; stderr?: string; code?: number };
-    return { stdout: e.stdout ?? '', stderr: e.stderr ?? '', code: e.code ?? 1 };
+    const e = error as {
+      stdout?: string;
+      stderr?: string;
+      code?: number | string;
+      signal?: string;
+      message?: string;
+    };
+    // Say why. A spawn that dies yields an empty stdout, and the assertion then
+    // reports only that a string was empty — which reads like a product bug and
+    // sent this chasing quoting and timeouts instead of resource exhaustion.
+    if ((e.stdout ?? '') === '' && e.code === null) {
+      throw new Error(
+        `forge ${args.join(' ')} produced no output ` +
+          `(code=${String(e.code)} signal=${String(e.signal)}): ${e.stderr || e.message || 'no detail'}`,
+      );
+    }
+    return {
+      stdout: e.stdout ?? '',
+      stderr: e.stderr ?? '',
+      code: typeof e.code === 'number' ? e.code : 1,
+    };
   }
 }
 
